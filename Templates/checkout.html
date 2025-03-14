@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookNest - Checkout</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .address-card {
+            background: #f8f8f8;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .order-summary-card {
+            background: #f8f8f8;
+            border-radius: 15px;
+            padding: 30px;
+        }
+
+        .form-control {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .action-button {
+            background: #000;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .action-button:hover {
+            background: #333;
+        }
+
+        .book-thumbnail {
+            width: 60px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+
+        .order-summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            color: #666;
+        }
+
+        .order-total {
+            font-weight: bold;
+            color: #000;
+        }
+
+        .thumbnails-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .add-address-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+        
+        .add-address-button:hover {
+            background: #45a049;
+        }
+        
+        .modal-content {
+            border-radius: 15px;
+        }
+        
+        .modal-header {
+            border-bottom: none;
+            padding: 20px 30px 0;
+        }
+        
+        .modal-body {
+            padding: 20px 30px;
+        }
+        
+        .modal-footer {
+            border-top: none;
+            padding: 0 30px 20px;
+        }
+        
+        .address-list {
+            margin-top: 20px;
+        }
+        
+        .address-item {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid #eee;
+            transition: all 0.3s ease;
+        }
+        
+        .address-item:hover {
+            border-color: #000;
+        }
+        
+        .address-item.selected {
+            border: 2px solid #000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-5">Checkout</h1>
+
+        <div class="row">
+            <div class="col-lg-7">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="h4 mb-0">Shipping address</h2>
+                    <button type="button" class="add-address-button" data-bs-toggle="modal" data-bs-target="#addAddressModal">
+                        Add New Address
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div id="addressList" class="address-list">
+                    {% if addresses %}
+                        {% for address in addresses %}
+                            <div class="address-item {% if address.is_default %}selected{% endif %}" data-address-id="{{ address.id }}">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h4 class="h6 mb-0">{{ address.full_name }}</h4>
+                                    <div>
+                                        {% if address.is_default %}
+                                            <span class="badge bg-dark">Default</span>
+                                        {% else %}
+                                            <button class="btn btn-sm btn-outline-dark make-default-btn" data-address-id="{{ address.id }}">Make Default</button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <p class="mb-1">{{ address.house_no }}, {{ address.area }}</p>
+                                {% if address.landmark %}
+                                    <p class="mb-1">Landmark: {{ address.landmark }}</p>
+                                {% endif %}
+                                <p class="mb-1">{{ address.city }}, {{ address.state }} - {{ address.pincode }}</p>
+                                <p class="mb-2">Phone: {{ address.phone_number }}</p>
+                                <div class="d-flex justify-content-end gap-2">
+                                    <button class="btn btn-sm btn-outline-secondary edit-address-btn" data-address-id="{{ address.id }}">Edit</button>
+                                    <button class="btn btn-sm btn-primary select-address-btn" data-address-id="{{ address.id }}">Deliver Here</button>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="address-card">
+                            <h3 class="h5 text-center mb-4">No addresses found</h3>
+                            <p class="text-center">Please add a new address to continue with checkout.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="order-summary-card">
+                    <h3 class="h4 mb-4">Your Order</h3>
+
+                    <div class="thumbnails-container">
+                        <img src="/api/placeholder/60/80" alt="Atomic Habits" class="book-thumbnail">
+                        <img src="/api/placeholder/60/80" alt="IKIGAI" class="book-thumbnail">
+                        <img src="/api/placeholder/60/80" alt="48 Laws of Power" class="book-thumbnail">
+                    </div>
+
+                    <div class="order-summary-row">
+                        <span>Subtotal:</span>
+                        <span>₹3198</span>
+                    </div>
+
+                    <div class="order-summary-row">
+                        <span>Shipping:</span>
+                        <span>₹0</span>
+                    </div>
+
+                    <div class="order-summary-row">
+                        <span>Tax:</span>
+                        <span>₹0</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-4">
+                        <button class="action-button">
+                            Edit cart
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </button>
+                        <button class="action-button" id="placeOrderBtn">
+                            Place Order
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add New Address Modal -->
+    <div class="modal fade" id="addAddressModal" tabindex="-1" aria-labelledby="addAddressModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addAddressModalLabel">Add New Address</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addAddressForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="fullName" class="form-label">Full Name</label>
+                                <input type="text" class="form-control" id="fullName" name="full_name" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="phoneNumber" class="form-label">Phone Number</label>
+                                <input type="text" class="form-control" id="phoneNumber" name="phone_number" required maxlength="10" pattern="[0-9]{10}">
+                                <small class="text-muted">10-digit number without spaces or dashes</small>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="houseNo" class="form-label">House No / Building Name</label>
+                            <input type="text" class="form-control" id="houseNo" name="house_no" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="area" class="form-label">Street / Area / Locality</label>
+                            <input type="text" class="form-control" id="area" name="area" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="landmark" class="form-label">Landmark (Optional)</label>
+                            <input type="text" class="form-control" id="landmark" name="landmark">
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="pincode" class="form-label">Pincode</label>
+                                <input type="text" class="form-control" id="pincode" name="pincode" required maxlength="6" pattern="[0-9]{6}">
+                                <small class="text-muted">6-digit pincode</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="city" class="form-label">City</label>
+                                <input type="text" class="form-control" id="city" name="city" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="state" class="form-label">State</label>
+                            <select class="form-control" id="state" name="state" required>
+                                <option value="">Select State</option>
+                                <option value="Andhra Pradesh">Andhra Pradesh</option>
+                                <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+                                <option value="Assam">Assam</option>
+                                <option value="Bihar">Bihar</option>
+                                <option value="Chhattisgarh">Chhattisgarh</option>
+                                <option value="Goa">Goa</option>
+                                <option value="Gujarat">Gujarat</option>
+                                <option value="Haryana">Haryana</option>
+                                <option value="Himachal Pradesh">Himachal Pradesh</option>
+                                <option value="Jharkhand">Jharkhand</option>
+                                <option value="Karnataka">Karnataka</option>
+                                <option value="Kerala">Kerala</option>
+                                <option value="Madhya Pradesh">Madhya Pradesh</option>
+                                <option value="Maharashtra">Maharashtra</option>
+                                <option value="Manipur">Manipur</option>
+                                <option value="Meghalaya">Meghalaya</option>
+                                <option value="Mizoram">Mizoram</option>
+                                <option value="Nagaland">Nagaland</option>
+                                <option value="Odisha">Odisha</option>
+                                <option value="Punjab">Punjab</option>
+                                <option value="Rajasthan">Rajasthan</option>
+                                <option value="Sikkim">Sikkim</option>
+                                <option value="Tamil Nadu">Tamil Nadu</option>
+                                <option value="Telangana">Telangana</option>
+                                <option value="Tripura">Tripura</option>
+                                <option value="Uttar Pradesh">Uttar Pradesh</option>
+                                <option value="Uttarakhand">Uttarakhand</option>
+                                <option value="West Bengal">West Bengal</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="makeDefault" name="is_default">
+                            <label class="form-check-label" for="makeDefault">Make this my default address</label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveAddressBtn">Save Address</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const saveAddressBtn = document.getElementById('saveAddressBtn');
+            const addAddressForm = document.getElementById('addAddressForm');
+            const addAddressModal = document.getElementById('addAddressModal');
+            const modal = new bootstrap.Modal(addAddressModal);
+            
+            // Handle saving new address
+            saveAddressBtn.addEventListener('click', function() {
+                // Check form validity
+                if (!addAddressForm.checkValidity()) {
+                    addAddressForm.reportValidity();
+                    return;
+                }
+                
+                // Collect form data
+                const formData = new FormData(addAddressForm);
+                
+                // Check if we're adding or updating
+                const addressId = formData.get('address_id');
+                const url = addressId 
+                    ? `/cart/address/update/${addressId}/` 
+                    : '/cart/address/add/';
+                
+                // Send AJAX request to save/update address
+                fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Close modal
+                        modal.hide();
+                        
+                        // Show success message
+                        const action = addressId ? 'updated' : 'added';
+                        alert(`Address ${action} successfully!`);
+                        
+                        // Reload page to show the new/updated address
+                        window.location.reload();
+                    } else {
+                        // Show error message
+                        alert(data.message || 'Error processing address. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred. Please try again.');
+                });
+            });
+            
+            // Handle making address default
+            document.querySelectorAll('.make-default-btn').forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const addressId = this.getAttribute('data-address-id');
+                    
+                    fetch(`/cart/address/make-default/${addressId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Reload page to update UI
+                            window.location.reload();
+                        } else {
+                            alert(data.message || 'Error setting default address. Please try again.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred. Please try again.');
+                    });
+                });
+            });
+            
+            // Handle editing address
+            document.querySelectorAll('.edit-address-btn').forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const addressId = this.getAttribute('data-address-id');
+                    
+                    // Fetch address details
+                    fetch(`/cart/address/${addressId}/`, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Populate form with address details
+                            document.getElementById('fullName').value = data.address.full_name;
+                            document.getElementById('phoneNumber').value = data.address.phone_number;
+                            document.getElementById('houseNo').value = data.address.house_no;
+                            document.getElementById('area').value = data.address.area;
+                            document.getElementById('landmark').value = data.address.landmark || '';
+                            document.getElementById('pincode').value = data.address.pincode;
+                            document.getElementById('city').value = data.address.city;
+                            document.getElementById('state').value = data.address.state;
+                            document.getElementById('makeDefault').checked = data.address.is_default;
+                            
+                            // Add address ID to form for update
+                            const addressIdInput = document.createElement('input');
+                            addressIdInput.type = 'hidden';
+                            addressIdInput.name = 'address_id';
+                            addressIdInput.value = addressId;
+                            addAddressForm.appendChild(addressIdInput);
+                            
+                            // Change modal title and button text
+                            document.getElementById('addAddressModalLabel').textContent = 'Edit Address';
+                            saveAddressBtn.textContent = 'Update Address';
+                            
+                            // Show modal
+                            modal.show();
+                        } else {
+                            alert(data.message || 'Error fetching address details. Please try again.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred. Please try again.');
+                    });
+                });
+            });
+            
+            // Handle selecting address for delivery
+            document.querySelectorAll('.select-address-btn').forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const addressId = this.getAttribute('data-address-id');
+                    
+                    // Remove selected class from all address items
+                    document.querySelectorAll('.address-item').forEach(item => {
+                        item.classList.remove('selected');
+                    });
+                    
+                    // Add selected class to the clicked address item
+                    this.closest('.address-item').classList.add('selected');
+                    
+                    // Store selected address ID in session or hidden input
+                    const selectedAddressInput = document.getElementById('selectedAddressId') || document.createElement('input');
+                    selectedAddressInput.type = 'hidden';
+                    selectedAddressInput.id = 'selectedAddressId';
+                    selectedAddressInput.name = 'selected_address_id';
+                    selectedAddressInput.value = addressId;
+                    document.body.appendChild(selectedAddressInput);
+                    
+                    // Show confirmation message
+                    alert('Address selected for delivery!');
+                });
+            });
+            
+            // Reset form when modal is closed
+            addAddressModal.addEventListener('hidden.bs.modal', function() {
+                addAddressForm.reset();
+                document.getElementById('addAddressModalLabel').textContent = 'Add New Address';
+                saveAddressBtn.textContent = 'Save Address';
+                
+                // Remove address ID input if exists
+                const addressIdInput = addAddressForm.querySelector('input[name="address_id"]');
+                if (addressIdInput) {
+                    addressIdInput.remove();
+                }
+            });
+            
+            // Function to get CSRF token from cookies
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+            
+            // Handle place order button
+            const placeOrderBtn = document.getElementById('placeOrderBtn');
+            if (placeOrderBtn) {
+                placeOrderBtn.addEventListener('click', function() {
+                    const selectedAddressId = document.getElementById('selectedAddressId')?.value;
+                    
+                    // If no address is selected, check if there's a default address
+                    if (!selectedAddressId) {
+                        const defaultAddress = document.querySelector('.address-item.selected');
+                        if (defaultAddress) {
+                            const addressId = defaultAddress.getAttribute('data-address-id');
+                            if (addressId) {
+                                // Create hidden input for selected address
+                                const selectedAddressInput = document.createElement('input');
+                                selectedAddressInput.type = 'hidden';
+                                selectedAddressInput.id = 'selectedAddressId';
+                                selectedAddressInput.name = 'selected_address_id';
+                                selectedAddressInput.value = addressId;
+                                document.body.appendChild(selectedAddressInput);
+                            }
+                        }
+                    }
+                    
+                    // Check if an address is selected
+                    const finalSelectedAddressId = document.getElementById('selectedAddressId')?.value;
+                    if (!finalSelectedAddressId) {
+                        alert('Please select a delivery address');
+                        return;
+                    }
+                    
+                    // Submit order with selected address
+                    fetch('/cart/place-order/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: `address_id=${finalSelectedAddressId}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Redirect to order confirmation page
+                            window.location.href = data.redirect_url || '/cart/order_placed/';
+                        } else {
+                            alert(data.message || 'Error placing order. Please try again.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred. Please try again.');
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>

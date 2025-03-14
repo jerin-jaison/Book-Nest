@@ -1,0 +1,530 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}BookNest{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"/>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #fafafa;
+        }
+        .btn-custom {
+            background-color: #8B4513;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        .btn-custom:hover {
+            background-color: #6b3410;
+            transform: translateY(-2px);
+            color: white;
+            text-decoration: none;
+        }
+        .btn-outline {
+            background-color: transparent;
+            color: #8B4513;
+            padding: 12px 30px;
+            border: 2px solid #8B4513;
+            border-radius: 25px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        .btn-outline:hover {
+            background-color: #8B4513;
+            color: white;
+            transform: translateY(-2px);
+            text-decoration: none;
+        }
+        .heart-btn {
+            background-color: white;
+            border: 2px solid #8B4513;
+            color: #8B4513;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .heart-btn:hover, .heart-btn.active {
+            background-color: #8B4513;
+            color: white;
+            transform: scale(1.1);
+        }
+        .quantity-btn {
+            background-color: #f3f4f6;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #8B4513;
+        }
+        .quantity-btn:hover {
+            background-color: #8B4513;
+            color: white;
+        }
+        .quantity-input {
+            width: 60px;
+            text-align: center;
+            font-size: 1.25rem;
+            border: none;
+            background: transparent;
+            color: #8B4513;
+            font-weight: 500;
+        }
+        .book-image {
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        .book-image:hover {
+            transform: translateY(-5px);
+        }
+        .thumbnail-image {
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .thumbnail-image:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .star-rating {
+            color: #FFD700;
+        }
+        .price-tag {
+            color: #8B4513;
+            font-weight: 700;
+        }
+        .discount-badge {
+            background-color: #dc3545;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        .nav-link {
+            color: #8B4513;
+            transition: all 0.3s ease;
+        }
+        .nav-link:hover {
+            color: #6b3410;
+        }
+        .social-icon {
+            color: #8B4513;
+            transition: all 0.3s ease;
+        }
+        .social-icon:hover {
+            color: #6b3410;
+            transform: translateY(-2px);
+        }
+        footer {
+            background-color: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <header class="bg-[#8B4513] text-white text-center py-2">
+        <p>Sign up and get 20% off on your first order. <a href="#" class="underline font-medium">Sign Up Now</a></p>
+    </header>
+
+    <nav class="bg-white border-b border-gray-200 py-4 px-8">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="{% url 'home' %}" class="text-2xl font-bold text-[#8B4513]">BookNest</a>
+            
+            <div class="flex items-center space-x-8">
+                <a href="#" class="nav-link">Top Selling</a>
+                <a href="#" class="nav-link">New Arrivals</a>
+                <a href="#" class="nav-link flex items-center">
+                    <i class="fas fa-heart mr-2"></i>Wishlist
+                </a>
+                <a href="#" class="nav-link">Contact</a>
+                
+                <div class="relative">
+                    <input type="search" placeholder="Search books..." 
+                           class="pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:border-[#8B4513]">
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <a href="#" class="text-[#8B4513] hover:text-[#6b3410] transition-colors">
+                        <i class="fas fa-shopping-cart text-xl"></i>
+                    </a>
+                    <a href="#" class="text-[#8B4513] hover:text-[#6b3410] transition-colors">
+                        <i class="fas fa-user text-xl"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto py-8 px-4">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Thumbnails -->
+            <div class="flex flex-row lg:flex-col space-x-4 lg:space-x-0 lg:space-y-4 justify-center">
+                {% for image in product.images.all|slice:":4" %}
+                <img src="{{ image.url }}" alt="Book view {{ forloop.counter }}" 
+                     class="thumbnail-image w-20 h-28 lg:w-32 lg:h-44 object-cover">
+                {% endfor %}
+            </div>
+            
+            <!-- Main Image -->
+            <div class="col-span-1">
+                <img src="{{ product.main_image.url }}" alt="Main book cover" 
+                     class="book-image w-full h-auto object-cover">
+            </div>
+            
+            <!-- Product Details -->
+            <div class="space-y-6">
+                <div class="flex justify-between items-start">
+                    <h1 class="text-3xl font-bold text-gray-800">{{ product.title }}</h1>
+                    <button class="heart-btn wishlist-btn" data-product-id="{{ product.id }}">
+                        <i class="fas fa-heart"></i>
+                    </button>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <span class="price-tag text-3xl">₹{{ product.price }}</span>
+                    {% if product.original_price %}
+                    <span class="text-gray-500 line-through text-xl">₹{{ product.original_price }}</span>
+                    <span class="discount-badge">₹{{ product.discount_amount }} OFF</span>
+                    {% endif %}
+                </div>
+                
+                <div class="flex items-center space-x-2">
+                    <div class="star-rating flex">
+                        {% for i in "12345"|make_list %}
+                        <i class="fas fa-star {% if forloop.counter <= product.rating %}text-yellow-400{% else %}text-gray-300{% endif %}"></i>
+                        {% endfor %}
+                    </div>
+                    <span class="text-gray-600">({{ product.review_count }} reviews)</span>
+                </div>
+                
+                <ul class="space-y-3 text-gray-700">
+                    <li><span class="font-medium text-gray-900">Author:</span> {{ product.author }}</li>
+                    <li><span class="font-medium text-gray-900">Pages:</span> {{ product.pages }}</li>
+                    <li><span class="font-medium text-gray-900">Language:</span> {{ product.language }}</li>
+                    <li><span class="font-medium text-gray-900">Publisher:</span> {{ product.publisher }}</li>
+                </ul>
+                
+                <div class="flex items-center space-x-6">
+                    <div class="flex items-center space-x-4">
+                        <button class="quantity-btn decrease">-</button>
+                        <input type="number" value="1" min="1" max="10" class="quantity-input" id="quantity">
+                        <button class="quantity-btn increase">+</button>
+                    </div>
+                    <button class="btn-custom flex items-center space-x-2" onclick="addToCart({{ product.id }})">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>Add to Cart</span>
+                    </button>
+                </div>
+                
+                <button class="btn-outline w-full">Buy Now</button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-16 py-8">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <h5 class="text-xl font-bold text-[#8B4513] mb-4">BookNest</h5>
+                    <p class="text-gray-600 mb-4">Where stories find home</p>
+                    <div class="flex space-x-4">
+                        <a href="#" class="social-icon"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="social-icon"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="social-icon"><i class="fab fa-instagram"></i></a>
+                    </div>
+                </div>
+                
+                <div>
+                    <h6 class="font-bold text-gray-800 mb-4">COMPANY</h6>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-600 hover:text-[#8B4513]">About</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-[#8B4513]">Features</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-[#8B4513]">Works</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-[#8B4513]">Career</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h6 class="font-bold text-gray-800 mb-4">HELP</h6>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-600 hover:text-[#8B4513]">Customer Support</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-[#8B4513]">Delivery Details</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-[#8B4513]">Terms & Conditions</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-[#8B4513]">Privacy Policy</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h6 class="font-bold text-gray-800 mb-4">FAQ</h6>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-600 hover:text-[#8B4513]">Account</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-[#8B4513]">Manage Deliveries</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-[#8B4513]">Orders</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-[#8B4513]">Payment</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <hr class="my-8 border-gray-200">
+            
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <p class="text-gray-600 text-sm mb-4 md:mb-0">© 2024 BookNest. All rights reserved.</p>
+                <div class="flex space-x-4">
+                    <img src="https://via.placeholder.com/40x25" alt="visa" class="h-6">
+                    <img src="https://via.placeholder.com/40x25" alt="mastercard" class="h-6">
+                    <img src="https://via.placeholder.com/40x25" alt="paypal" class="h-6">
+                    <img src="https://via.placeholder.com/40x25" alt="amex" class="h-6">
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Quantity buttons
+        document.querySelector('.decrease').addEventListener('click', function() {
+            let input = document.getElementById('quantity');
+            if (input.value > 1) input.value = parseInt(input.value) - 1;
+        });
+
+        document.querySelector('.increase').addEventListener('click', function() {
+            let input = document.getElementById('quantity');
+            if (input.value < 10) input.value = parseInt(input.value) + 1;
+        });
+
+        // Wishlist functionality
+        document.querySelector('.wishlist-btn').addEventListener('click', function() {
+            const productId = this.dataset.productId;
+            fetch(`/wishlist/toggle/${productId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    this.classList.toggle('active');
+                    // Show success message
+                    alert(data.message);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+
+        // Get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Add to cart functionality
+        function addToCart(productId) {
+            const quantity = document.getElementById('quantity').value;
+            fetch('/cart/add/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    product_id: productId,
+                    quantity: quantity
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert(data.message);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Thumbnail click handler
+        document.querySelectorAll('.thumbnail-image').forEach(thumb => {
+            thumb.addEventListener('click', function() {
+                const mainImage = document.querySelector('.book-image');
+                const tempSrc = mainImage.src;
+                mainImage.src = this.src;
+                this.src = tempSrc;
+            });
+        });
+    </script>
+</body>
+</html>
+
+<!-- templates/home.html -->
+{% extends 'base.html' %}
+
+{% block title %}BookNest - Find Your Next Book{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-center mb-4">
+    <div class="nav nav-pills category-nav">
+        {% for category in categories %}
+        <a href="#" 
+           class="nav-link px-3 py-2 mx-1 {% if category.id == current_category.id %}active{% endif %}" 
+           data-category="{{ category.slug }}">
+            {{ category.name }}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <h2 id="category-title" class="mb-4">{{ current_category.name }}</h2>
+    </div>
+</div>
+
+<div class="row" id="books-container">
+    {% for book in books %}
+    <div class="col-md-3 mb-4">
+        <div class="card book-card h-100 border-0">
+            {% if book.discount_percentage %}
+            <div class="discount-badge">-{{ book.discount_percentage }}%</div>
+            {% endif %}
+            <img src="{{ book.image.url }}" class="card-img-top p-3" alt="{{ book.title }}">
+            <div class="card-body pb-2">
+                <h6 class="card-title mb-1" title="{{ book.title }}">{{ book.title }}</h6>
+                <p class="text-muted small mb-1">{{ book.author }}</p>
+                
+                <div class="star-rating mb-2">
+                    {% for i in '12345'|make_list %}
+                    <i class="fa fa-star {% if forloop.counter <= book.rating %}checked{% endif %}"></i>
+                    {% endfor %}
+                    <span class="ms-1 text-muted small">({{ book.review_count }})</span>
+                </div>
+                
+                <div class="d-flex align-items-center">
+                    <span class="fw-bold">₹ {{ book.price }}</span>
+                    {% if book.original_price %}
+                    <span class="text-muted small text-decoration-line-through ms-2">₹ {{ book.original_price }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-footer bg-white border-0 pt-0">
+                <button class="btn btn-sm btn-dark w-100">Add to Cart</button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<nav aria-label="Page navigation" class="mt-4">
+    <ul class="pagination justify-content-center">
+        <li class="page-item"><a class="page-link" href="#" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a></li>
+        <li class="page-item active"><a class="page-link" href="#">1</a></li>
+        <li class="page-item"><a class="page-link" href="#">2</a></li>
+        <li class="page-item"><a class="page-link" href="#">3</a></li>
+        <li class="page-item"><a class="page-link" href="#" aria-label="Next"><span aria-hidden="true">&raquo;</span></a></li>
+    </ul>
+</nav>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const categoryLinks = document.querySelectorAll('.category-nav .nav-link');
+    const booksContainer = document.getElementById('books-container');
+    const categoryTitle = document.getElementById('category-title');
+    
+    categoryLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Update active class
+            categoryLinks.forEach(l => l.classList.remove('active'));
+            this.classList.add('active');
+            
+            const categorySlug = this.getAttribute('data-category');
+            
+            // Show loading state
+            booksContainer.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+            
+            // Fetch books for selected category
+            fetch(`/category/${categorySlug}/`)
+                .then(response => response.json())
+                .then(data => {
+                    categoryTitle.textContent = data.category_name;
+                    
+                    let booksHTML = '';
+                    data.books.forEach(book => {
+                        let starsHTML = '';
+                        for (let i = 1; i <= 5; i++) {
+                            starsHTML += `<i class="fa fa-star ${i <= book.rating ? 'checked' : ''}"></i>`;
+                        }
+                        
+                        booksHTML += `
+                        <div class="col-md-3 mb-4">
+                            <div class="card book-card h-100 border-0">
+                                ${book.discount_percentage ? `<div class="discount-badge">-${book.discount_percentage}%</div>` : ''}
+                                <img src="${book.image}" class="card-img-top p-3" alt="${book.title}">
+                                <div class="card-body pb-2">
+                                    <h6 class="card-title mb-1" title="${book.title}">${book.title}</h6>
+                                    <p class="text-muted small mb-1">${book.author}</p>
+                                    
+                                    <div class="star-rating mb-2">
+                                        ${starsHTML}
+                                        <span class="ms-1 text-muted small">(${book.review_count})</span>
+                                    </div>
+                                    
+                                    <div class="d-flex align-items-center">
+                                        <span class="fw-bold">₹ ${book.price}</span>
+                                        ${book.original_price ? `<span class="text-muted small text-decoration-line-through ms-2">₹ ${book.original_price}</span>` : ''}
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-white border-0 pt-0">
+                                    <button class="btn btn-sm btn-dark w-100">Add to Cart</button>
+                                </div>
+                            </div>
+                        </div>`;
+                    });
+                    
+                    booksContainer.innerHTML = booksHTML;
+                })
+                .catch(error => {
+                    console.error('Error fetching books:', error);
+                    booksContainer.innerHTML = '<div class="col-12"><p class="text-center text-danger">Failed to load books. Please try again.</p></div>';
+                });
+        });
+    });
+});
+</script>
+{% endblock %}

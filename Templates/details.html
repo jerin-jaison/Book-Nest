@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookNest - Where stories find home</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .notification-bar {
+            background-color: #8B4513;
+            color: white;
+            padding: 8px 0;
+        }
+        .logo {
+            color: #8B4513;
+            font-size: 24px;
+            font-weight: bold;
+            text-decoration: none;
+        }
+        .product-image-small {
+            width: 80px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        .book-price {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .original-price {
+            text-decoration: line-through;
+            color: #6c757d;
+        }
+        .discount-badge {
+            background-color: #ff4444;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        .social-icon {
+            width: 32px;
+            height: 32px;
+            background: #f8f9fa;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .payment-icon {
+            height: 24px;
+            margin-right: 10px;
+        }
+        .review-card {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .star-rating {
+            color: #ffc107;
+        }
+        .star-rating .far {
+            color: #dee2e6;
+        }
+        .recommendation-card {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        .recommendation-card:hover {
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 4rem 0;
+        }
+        .footer-logo {
+            color: #8B4513;
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+        .footer-link {
+            color: #6c757d;
+            text-decoration: none;
+        }
+        .footer-link:hover {
+            color: #8B4513;
+        }
+        .payment-icons img {
+            height: 30px;
+            margin: 0 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Notification Bar -->
+    <div class="notification-bar text-center">
+        <span>Sign up and get 20% off to your first order. <a href="#" class="text-white text-decoration-underline">Sign Up Now</a></span>
+        <button type="button" class="btn-close btn-close-white float-end me-3" aria-label="Close"></button>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white py-3">
+        <div class="container">
+            <a class="logo" href="#">BookNest</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav mx-auto">
+                    <li class="nav-item"><a class="nav-link" href="#">Top Selling</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">New Arrivals</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">Wishlist</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">Contact</a></li>
+                </ul>
+                <form class="d-flex me-3">
+                    <input class="form-control" type="search" placeholder="Search for books..." aria-label="Search">
+                </form>
+                <div>
+                    <a href="#" class="btn btn-link"><i class="fas fa-shopping-cart"></i></a>
+                    <a href="#" class="btn btn-link"><i class="fas fa-user"></i></a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container my-5">
+        <div class="row">
+            <!-- Thumbnail Images -->
+            <div class="col-md-1">
+                <div class="d-flex flex-column">
+                    <img src="/api/placeholder/80/120" class="product-image-small" alt="Book thumbnail 1">
+                    <img src="/api/placeholder/80/120" class="product-image-small" alt="Book thumbnail 2">
+                    <img src="/api/placeholder/80/120" class="product-image-small" alt="Book thumbnail 3">
+                </div>
+            </div>
+            
+            <!-- Main Product Image -->
+            <div class="col-md-5">
+                <img src="/api/placeholder/400/600" class="img-fluid" alt="Atomic Habits">
+            </div>
+            
+            <!-- Product Details -->
+            <div class="col-md-6">
+                <h6 class="text-uppercase mb-3">THE INTERNATIONAL BESTSELLER</h6>
+                <h1>Atomic Habits</h1>
+                <h4 class="mb-4">Tiny Changes, Remarkable Results</h4>
+                
+                <div class="mb-4">
+                    <span class="book-price">₹1299</span>
+                    <span class="original-price ms-2">₹2000</span>
+                    <span class="discount-badge ms-2">₹700 OFF</span>
+                </div>
+                
+                <ul class="list-unstyled mb-4">
+                    <li class="mb-2">Author: Clear James</li>
+                    <li class="mb-2">307 Pages</li>
+                    <li class="mb-2">Language: English</li>
+                    <li class="mb-2">Publisher: Penguin</li>
+                </ul>
+                
+                <div class="d-flex align-items-center mb-4">
+                    <div class="input-group me-3" style="width: 120px;">
+                        <button class="btn btn-outline-secondary">-</button>
+                        <input type="text" class="form-control text-center" value="1">
+                        <button class="btn btn-outline-secondary">+</button>
+                    </div>
+                    <button class="btn btn-dark px-4 me-3">Add to Cart</button>
+                    <button class="btn btn-dark px-4">Buy now</button>
+                </div>
+                
+                <div class="mb-4">
+                    <h5>Product description</h5>
+                    <p>This breakthrough book from James Clear is the most comprehensive guide on how to change your habits and get 1% better every day. A supremely practical and useful book. James Clear distills the most fundamental information about habit formation.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reviews Section -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4>All Reviews (451)</h4>
+                    <div>
+                        <button class="btn btn-outline-secondary me-2">
+                            <i class="fas fa-sort"></i>
+                        </button>
+                        <select class="form-select d-inline-block w-auto">
+                            <option>Latest</option>
+                        </select>
+                        <button class="btn btn-dark ms-2">Write a Review</button>
+                    </div>
+                </div>
+
+                <!-- Individual Reviews -->
+                <div class="review-card">
+                    <div class="d-flex justify-content-between mb-2">
+                        <h5 class="mb-0">Abstin</h5>
+                        <div class="star-rating">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star-half-alt"></i>
+                        </div>
+                    </div>
+                    <p class="mb-2">Life-changing! Helped me build better habits effortlessly.</p>
+                    <small class="text-muted">Posted on June 10, 2024</small>
+                </div>
+
+                <div class="review-card">
+                    <div class="d-flex justify-content-between mb-2">
+                        <h5 class="mb-0">Abhinav</h5>
+                        <div class="star-rating">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star-half-alt"></i>
+                            <i class="far fa-star"></i>
+                        </div>
+                    </div>
+                    <p class="mb-2">Simple yet powerful techniques for personal growth!</p>
+                    <small class="text-muted">Posted on July 12, 2024</small>
+                </div>
+
+                <div class="text-center mt-4">
+                    <button class="btn btn-outline-dark">Load More Reviews</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- You might also like Section -->
+        <div class="row mt-5">
+            <h3 class="mb-4">You might also like</h3>
+            
+            <div class="col-md-3">
+                <a href="#" class="recommendation-card">
+                    <img src="/api/placeholder/200/300" class="img-fluid mb-3" alt="Forever Employable">
+                    <h5>Forever Employable</h5>
+                    <div class="star-rating mb-2">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <span class="ms-2">5.0/5</span>
+                    </div>
+                    <div>
+                        <span class="book-price">₹1600</span>
+                        <span class="original-price ms-2">₹2000</span>
+                        <span class="discount-badge ms-2">₹800 OFF</span>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-md-3">
+                <a href="#" class="recommendation-card">
+                    <img src="/api/placeholder/200/300" class="img-fluid mb-3" alt="The 1% Rule">
+                    <h5>The 1% Rule</h5>
+                    <div class="star-rating mb-2">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <span class="ms-2">5.0/5</span>
+                    </div>
+                    <div>
+                        <span class="book-price">₹1100</span>
+                        <span class="original-price ms-2">₹1200</span>
+                        <span class="discount-badge ms-2">₹100 OFF</span>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-md-3">
+                <a href="#" class="recommendation-card">
+                    <img src="/api/placeholder/200/300" class="img-fluid mb-3" alt="The Art of Letting Go">
+                    <h5>The Art of Letting Go</h5>
+                    <div class="star-rating mb-2">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star-half-alt"></i>
+                        <i class="far fa-star"></i>
+                        <span class="ms-2">3.5/5</span>
+                    </div>
+                    <div>
+                        <span class="book-price">₹1199</span>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-md-3">
+                <a href="#" class="recommendation-card">
+                    <img src="/api/placeholder/200/300" class="img-fluid mb-3" alt="How to Win Friends and Influence People">
+                    <h5>How to Win & Influence People</h5>
+                    <div class="star-rating mb-2">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star-half-alt"></i>
+                        <i class="far fa-star"></i>
+                        <span class="ms-2">3.5/5</span>
+                    </div>
+                    <div>
+                        <span class="book-price">₹1699</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer mt-5">
+        <div class="container">
+            <div class="row g-4">
+                <div class="col-12 col-md-6 col-lg-3">
+                    <h3 class="footer-logo mb-3">BookNest</h3>
+                    <p class="text-muted">Where stories find home</p>
+                    <div class="d-flex gap-3 mt-4">
+                        <a href="#" class="footer-link"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="footer-link"><i class="fab fa-facebook"></i></a>
+                        <a href="#" class="footer-link"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="footer-link"><i class="fab fa-github"></i></a>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-3">
+                    <h5 class="mb-3">Company</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="#" class="footer-link">About</a></li>
+                        <li class="mb-2"><a href="#" class="footer-link">Features</a></li>
+                        <li class="mb-2"><a href="#" class="footer-link">Works</a></li>
+                        <li class="mb-2"><a href="#" class="footer-link">Career</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-6 col-md-3">
+                    <h5 class="mb-3">Help</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="#" class="footer-link">Support</a></li>
+                        <li class="mb-2"><a href="#" class="footer-link">Delivery</a></li>
+                        <li class="mb-2"><a href="#" class="footer-link">Terms</a></li>
+                        <li class="mb-2"><a href="#" class="footer-link">Privacy</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-6 col-md-3">
+                    <h5 class="mb-3">Resources</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="#" class="footer-link">Free eBooks</a></li>
+                        <li class="mb-2"><a href="#" class="footer-link">Tutorials</a></li>
+                        <li class="mb-2"><a href="#" class="footer-link">Blog</a></li>
+                        <li class="mb-2"><a href="#" class="footer-link">YouTube</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="border-top mt-5 pt-4">
+                <div class="row align-items-center">
+                    <div class="col-md-6 text-center text-md-start">
+                        <p class="text-muted mb-0">&copy; 2000-2025 BookNest. All rights reserved</p>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-center justify-content-md-end payment-icons mt-3 mt-md-0">
+                            <img src="https://storage.googleapis.com/a1aa/image/CvETv1XFoc14cAELH7V0nxMX2Ilypfi6g6Q6_xdHPzs.jpg" alt="Visa" class="img-fluid">
+                            <img src="https://storage.googleapis.com/a1aa/image/PXFIRqQYpm56O8w3vEkSZlUZzocz7LWve1cX9O6P9Rs.jpg" alt="Mastercard" class="img-fluid">
+                            <img src="https://storage.googleapis.com/a1aa/image/sLigJSAzyE-Xx6s29No18urJ9gAB6iebGYousYixUfA.jpg" alt="PayPal" class="img-fluid">
+                            <img src="https://storage.googleapis.com/a1aa/image/H5sQZyRcLlTM0fHhzISB1otRbhjvmCpOVFegDSwAvvo.jpg" alt="Apple Pay" class="img-fluid">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS and Popper.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src
