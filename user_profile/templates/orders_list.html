@@ -1,0 +1,491 @@
+{% extends 'userProfile_demo.html' %}
+{% load static %}
+
+{% block profile_content %}
+<style>
+    .orders-container {
+        padding: 20px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+
+    .search-section {
+        margin-bottom: 20px;
+        display: flex;
+        gap: 10px;
+    }
+
+    .search-input {
+        flex: 1;
+        padding: 8px 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+    }
+
+    .filter-select {
+        padding: 8px 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        min-width: 150px;
+    }
+
+    .order-card {
+        border: 1px solid #eee;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        transition: all 0.3s ease;
+    }
+
+    .order-card:hover {
+        box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+    }
+
+    .order-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .order-id {
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+
+    .order-date {
+        color: #666;
+        font-size: 0.9rem;
+    }
+
+    .order-status {
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .status-pending {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .status-confirmed {
+        background-color: #cce5ff;
+        color: #004085;
+    }
+
+    .status-shipped {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .status-delivered {
+        background-color: #d1e7dd;
+        color: #0f5132;
+    }
+
+    .status-cancelled {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    .status-returned {
+        background-color: #e2e3e5;
+        color: #383d41;
+    }
+
+    .status-return-requested {
+        background-color: #ffd700;
+        color: #000;
+    }
+
+    .status-returned {
+        background-color: #808080;
+        color: #fff;
+    }
+
+    .order-items {
+        margin: 10px 0;
+    }
+
+    .order-item {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #f5f5f5;
+    }
+
+    .item-image {
+        width: 60px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 4px;
+    }
+
+    .item-details {
+        flex: 1;
+    }
+
+    .item-title {
+        font-weight: 500;
+        margin-bottom: 5px;
+    }
+
+    .item-price {
+        color: #666;
+    }
+
+    .order-total {
+        text-align: right;
+        font-weight: 600;
+        margin-top: 10px;
+    }
+
+    .order-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    .btn-action {
+        padding: 5px 15px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-view {
+        background-color: var(--primary-color);
+        color: white;
+    }
+
+    .btn-cancel {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .btn-return {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background-color: white;
+        width: 90%;
+        max-width: 500px;
+        margin: 50px auto;
+        padding: 20px;
+        border-radius: 8px;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .close-modal {
+        cursor: pointer;
+        font-size: 1.5rem;
+    }
+
+    .reason-textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        margin: 10px 0;
+        min-height: 100px;
+    }
+
+    .pagination {
+        margin-top: 20px;
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .page-link {
+        padding: 5px 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        color: var(--primary-color);
+        text-decoration: none;
+    }
+
+    .page-link.active {
+        background-color: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+
+    .no-orders {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+    }
+</style>
+
+<div class="orders-container">
+    <h2 class="mb-4">My Orders</h2>
+
+    <div class="search-section">
+        <input type="text" class="search-input" placeholder="Search by Order ID..." id="orderSearch">
+        <select class="filter-select" id="statusFilter">
+            <option value="">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="shipped">Shipped</option>
+            <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="returned">Returned</option>
+        </select>
+    </div>
+
+    <div id="ordersList">
+        {% for order in orders %}
+        <div class="order-card">
+            <div class="order-header">
+                <div>
+                    <div class="order-id">Order #{{ order.order_id }}</div>
+                    <div class="order-date">{{ order.created_at|date:"F d, Y" }}</div>
+                </div>
+                <div class="order-status">
+                    <span class="status-badge {% if order.status == 'DELIVERED' %}status-delivered{% elif order.status == 'RETURN_REQUESTED' %}status-return-requested{% elif order.status == 'RETURNED' %}status-returned{% else %}status-{{ order.status|lower }}{% endif %}">
+                        {% if order.return_requested and order.status != 'RETURNED' %}
+                            Return Requested
+                        {% else %}
+                            {{ order.get_status_display }}
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <div class="order-items">
+                {% for item in order.items.all %}
+                <div class="order-item">
+                    <img src="{{ item.product.cover_image.url }}" alt="{{ item.product.title }}" class="item-image">
+                    <div class="item-details">
+                        <div class="item-title">{{ item.product.title }}</div>
+                        <div class="item-price">₹{{ item.price }} x {{ item.quantity }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="order-total">
+                Total: ₹{{ order.total }}
+            </div>
+
+            <div class="order-actions">
+                <a href="{% url 'user_profile:order_detail' order.order_id %}" class="btn-action btn-view">View Details</a>
+                <a href="{% url 'user_profile:generate_invoice' order.order_id %}" class="btn-action" style="background-color: #28a745; color: white;">
+                    <i class="bi bi-file-earmark-pdf"></i> Invoice
+                </a>
+                {% if order.status == 'PENDING' or order.status == 'CONFIRMED' %}
+                <a href="{% url 'user_profile:cancel_order_page' order.order_id %}" class="btn-action btn-cancel">Cancel Order</a>
+                {% endif %}
+                {% if order.status == 'DELIVERED' and not order.return_requested %}
+                <a href="{% url 'user_profile:return_order' order.order_id %}" class="btn-action btn-return">Return Order</a>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="no-orders">
+            <i class="bi bi-box-seam" style="font-size: 3rem; display: block; margin-bottom: 15px;"></i>
+            <p>You haven't placed any orders yet.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if orders.has_other_pages %}
+    <div class="pagination">
+        {% if orders.has_previous %}
+        <a href="?page={{ orders.previous_page_number }}" class="page-link">&laquo;</a>
+        {% endif %}
+
+        {% for i in orders.paginator.page_range %}
+        <a href="?page={{ i }}" class="page-link {% if orders.number == i %}active{% endif %}">{{ i }}</a>
+        {% endfor %}
+
+        {% if orders.has_next %}
+        <a href="?page={{ orders.next_page_number }}" class="page-link">&raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Cancel Order Modal -->
+<div id="cancelModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Cancel Order</h3>
+            <span class="close-modal" onclick="closeCancelModal()">&times;</span>
+        </div>
+        <form id="cancelForm" method="POST">
+            {% csrf_token %}
+            <p>Are you sure you want to cancel this order?</p>
+            <textarea class="reason-textarea" name="cancel_reason" placeholder="Reason for cancellation (optional)"></textarea>
+            <div class="d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-secondary" onclick="closeCancelModal()">No, Keep Order</button>
+                <button type="submit" class="btn btn-danger">Yes, Cancel Order</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Return Order Modal -->
+<div id="returnModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Return Order</h3>
+            <span class="close-modal" onclick="closeReturnModal()">&times;</span>
+        </div>
+        <form id="returnForm" method="POST">
+            {% csrf_token %}
+            <p>Please provide a reason for returning this order:</p>
+            <textarea class="reason-textarea" name="return_reason" placeholder="Reason for return" required></textarea>
+            <div class="d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-secondary" onclick="closeReturnModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Submit Return Request</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Search and filter functionality
+    const orderSearch = document.getElementById('orderSearch');
+    const statusFilter = document.getElementById('statusFilter');
+    const ordersList = document.getElementById('ordersList');
+
+    function filterOrders() {
+        const searchTerm = orderSearch.value.toLowerCase();
+        const statusTerm = statusFilter.value.toLowerCase();
+        const orders = ordersList.getElementsByClassName('order-card');
+
+        Array.from(orders).forEach(order => {
+            const orderId = order.querySelector('.order-id').textContent.toLowerCase();
+            const status = order.querySelector('.order-status').textContent.toLowerCase();
+            
+            const matchesSearch = orderId.includes(searchTerm);
+            const matchesStatus = !statusTerm || status === statusTerm;
+            
+            order.style.display = matchesSearch && matchesStatus ? 'block' : 'none';
+        });
+    }
+
+    orderSearch.addEventListener('input', filterOrders);
+    statusFilter.addEventListener('change', filterOrders);
+
+    // Modal functionality
+    function showCancelModal(orderId) {
+        const modal = document.getElementById('cancelModal');
+        const form = document.getElementById('cancelForm');
+        form.action = `{% url 'user_profile:cancel_order' '000' %}`.replace('000', orderId);
+        modal.style.display = 'block';
+    }
+
+    function closeCancelModal() {
+        document.getElementById('cancelModal').style.display = 'none';
+    }
+
+    function showReturnModal(orderId) {
+        const modal = document.getElementById('returnModal');
+        const form = document.getElementById('returnForm');
+        form.action = `{% url 'user_profile:return_order' '000' %}`.replace('000', orderId);
+        modal.style.display = 'block';
+    }
+
+    function closeReturnModal() {
+        document.getElementById('returnModal').style.display = 'none';
+    }
+
+    // Close modals when clicking outside
+    window.onclick = function(event) {
+        const cancelModal = document.getElementById('cancelModal');
+        const returnModal = document.getElementById('returnModal');
+        if (event.target === cancelModal) {
+            cancelModal.style.display = 'none';
+        }
+        if (event.target === returnModal) {
+            returnModal.style.display = 'none';
+        }
+    }
+
+    // Form submission handling
+    document.getElementById('cancelForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        
+        fetch(this.action, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                location.reload();
+            } else {
+                alert(data.message || 'An error occurred');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        });
+    });
+
+    document.getElementById('returnForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        
+        if (!formData.get('return_reason').trim()) {
+            alert('Please provide a reason for return');
+            return;
+        }
+        
+        fetch(this.action, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                location.reload();
+            } else {
+                alert(data.message || 'An error occurred');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        });
+    });
+</script>
+{% endblock %}

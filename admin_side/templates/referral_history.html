@@ -1,0 +1,387 @@
+{% extends 'admin_sidebar.html' %}
+
+{% block content %}
+<style>
+    :root {
+        --primary-color: #8B4513;
+        --primary-hover: #6b3410;
+        --light-brown: #f5e6d3;
+        --bg-light: #fafafa;
+    }
+
+    .stats-card {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+
+    .table th {
+        background-color: var(--light-brown);
+        color: var(--primary-color);
+        font-weight: 600;
+        padding: 1rem;
+    }
+
+    .table td {
+        vertical-align: middle;
+        padding: 1rem;
+    }
+
+    .btn-custom {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 8px 20px;
+        border: none;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-custom:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-2px);
+        color: white;
+    }
+
+    .btn-outline {
+        background-color: transparent;
+        color: var(--primary-color);
+        border: 2px solid var(--primary-color);
+        padding: 8px 20px;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-outline:hover {
+        background-color: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .badge-success {
+        background-color: #d4edda;
+        color: #155724;
+        padding: 0.5em 1em;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+
+    .badge-pending {
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 0.5em 1em;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+
+    .search-input {
+        border-radius: 25px;
+        padding: 10px 20px;
+        border: 2px solid #dee2e6;
+        transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+        border-color: var(--primary-color);
+        box-shadow: none;
+    }
+
+    .pagination .page-item .page-link {
+        color: var(--primary-color);
+        border: none;
+        padding: 10px 15px;
+        margin: 0 5px;
+        border-radius: 25px;
+    }
+
+    .pagination .page-item.active .page-link {
+        background-color: var(--primary-color);
+        color: white;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Header Section -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0" style="color: var(--primary-color);">
+            <i class="bi bi-clock-history me-2"></i>Referral History
+        </h2>
+        <a href="{% url 'admin_side:referral_offer_list' %}" class="btn-outline">
+            <i class="bi bi-arrow-left me-2"></i>Back to Referral Offers
+        </a>
+    </div>
+
+    <!-- Search and Filter Section -->
+    <div class="card stats-card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <input type="text" class="form-control search-input" id="searchInput" 
+                               placeholder="Search by username, email...">
+                        <button class="btn btn-outline" type="button" onclick="clearSearch()">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" id="rewardFilter">
+                        <option value="">All Status</option>
+                        <option value="rewarded">Rewarded</option>
+                        <option value="pending">Pending</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-outline w-100" onclick="resetFilters()">
+                        Clear Filters
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Referrals Table -->
+    <div class="card stats-card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Referrer</th>
+                            <th>Referred User</th>
+                            <th>Referral Code</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if referrals %}
+                            {% for referral in referrals %}
+                            <tr>
+                                <td>
+                                    <div>
+                                        <div class="fw-medium">{{ referral.referrer.get_full_name }}</div>
+                                        <small class="text-muted">{{ referral.referrer.email }}</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>
+                                        <div class="fw-medium">{{ referral.referred_user.get_full_name }}</div>
+                                        <small class="text-muted">{{ referral.referred_user.email }}</small>
+                                    </div>
+                                </td>
+                                <td>{{ referral.referral_code }}</td>
+                                <td>{{ referral.created_at|date:"d M, Y" }}</td>
+                                <td>
+                                    {% if referral.reward_given %}
+                                    <span class="badge badge-success">Rewarded</span>
+                                    {% else %}
+                                    <span class="badge badge-pending">Pending</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if not referral.reward_given %}
+                                    <button class="btn btn-sm btn-custom" onclick="giveReward('{{ referral.id }}')">
+                                        <i class="bi bi-gift me-1"></i>Give Reward
+                                    </button>
+                                    {% else %}
+                                    <button class="btn btn-sm btn-outline" disabled>
+                                        <i class="bi bi-check-circle me-1"></i>Rewarded
+                                    </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4">
+                                    <div class="alert alert-info mb-0">
+                                        No referral history found.
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if referrals.has_other_pages %}
+            <nav class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if referrals.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1"><i class="bi bi-chevron-double-left"></i></a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ referrals.previous_page_number }}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in referrals.paginator.page_range %}
+                    {% if referrals.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > referrals.number|add:'-3' and num < referrals.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+
+                    {% if referrals.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ referrals.next_page_number }}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ referrals.paginator.num_pages }}">
+                            <i class="bi bi-chevron-double-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Reward Confirmation Modal -->
+<div class="modal fade" id="rewardModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Give Referral Reward</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to give a reward for this referral? This will generate a coupon for the referrer.</p>
+                <form id="rewardForm">
+                    <input type="hidden" id="referralId" name="referralId">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-custom" onclick="confirmReward()">Give Reward</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Function to give reward
+    function giveReward(referralId) {
+        if (confirm('Are you sure you want to give a reward for this referral? This will create a coupon worth ₹100 for the referrer.')) {
+            fetch(`/admin_side/offers/referrals/give-reward/${referralId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message with coupon code
+                    Swal.fire({
+                        title: 'Success!',
+                        html: `Reward given successfully!<br><br>Coupon Code: <strong>${data.coupon_code}</strong>`,
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: data.message,
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'An error occurred. Please try again.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            });
+        }
+    }
+
+    // Function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Search functionality
+    document.getElementById('searchInput').addEventListener('keyup', function() {
+        const searchValue = this.value.toLowerCase();
+        const rows = document.querySelectorAll('tbody tr');
+        
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(searchValue) ? '' : 'none';
+        });
+    });
+
+    // Filter by reward status
+    document.getElementById('rewardFilter').addEventListener('change', function() {
+        const filterValue = this.value.toLowerCase();
+        const rows = document.querySelectorAll('tbody tr');
+        
+        rows.forEach(row => {
+            if (filterValue === '') {
+                row.style.display = '';
+                return;
+            }
+            
+            const statusCell = row.querySelector('td:nth-child(5)');
+            const statusText = statusCell.textContent.toLowerCase();
+            
+            row.style.display = statusText.includes(filterValue) ? '' : 'none';
+        });
+    });
+
+    // Clear search
+    function clearSearch() {
+        document.getElementById('searchInput').value = '';
+        const rows = document.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            row.style.display = '';
+        });
+    }
+
+    // Reset all filters
+    function resetFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('rewardFilter').value = '';
+        const rows = document.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            row.style.display = '';
+        });
+    }
+</script>
+{% endblock %} 

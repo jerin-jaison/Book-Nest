@@ -1,0 +1,129 @@
+{% extends 'userProfile_demo.html' %}
+{% load static %}
+
+{% block profile_content %}
+<style>
+    .return-form-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+
+    .order-summary {
+        margin-bottom: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+
+    .order-info {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 15px;
+    }
+
+    .return-form {
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 10px;
+        font-weight: 500;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin-bottom: 10px;
+    }
+
+    .btn-submit {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+    }
+
+    .btn-submit:hover {
+        opacity: 0.9;
+    }
+
+    .return-policy {
+        margin-top: 20px;
+        padding: 15px;
+        background: #fff3cd;
+        border: 1px solid #ffeeba;
+        border-radius: 4px;
+        color: #856404;
+    }
+</style>
+
+<div class="return-form-container">
+    <h2 class="mb-4">Return Request</h2>
+
+    <div class="order-summary">
+        <h3 class="mb-3">Order Summary</h3>
+        <div class="order-info">
+            <span>Order ID:</span>
+            <span>#{{ order.order_id }}</span>
+        </div>
+        <div class="order-info">
+            <span>Order Date:</span>
+            <span>{{ order.created_at|date:"F d, Y" }}</span>
+        </div>
+        <div class="order-info">
+            <span>Total Amount:</span>
+            <span>₹{{ order.total }}</span>
+        </div>
+    </div>
+
+    <form method="post" action="{% url 'user_profile:return_order' order.order_id %}" class="return-form">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="return_reason">Reason for Return *</label>
+            <select name="return_reason" id="return_reason" class="form-control" required>
+                <option value="">Select a reason</option>
+                <option value="Damaged Product">Product arrived damaged</option>
+                <option value="Wrong Product">Received wrong product</option>
+                <option value="Not as Described">Product not as described</option>
+                <option value="Quality Issues">Quality issues</option>
+                <option value="Other">Other</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="additional_details">Additional Details</label>
+            <textarea name="additional_details" id="additional_details" rows="4" class="form-control" placeholder="Please provide more details about your return request..."></textarea>
+        </div>
+
+        <div class="return-policy">
+            <p><strong>Return Policy:</strong></p>
+            <ul>
+                <li>Returns must be initiated within 7 days of delivery</li>
+                <li>Product must be in original condition</li>
+                <li>All original packaging and accessories must be included</li>
+                <li>Refund will be processed after product inspection</li>
+            </ul>
+        </div>
+
+        <div class="form-group mt-4">
+            <button type="submit" class="btn-submit">Submit Return Request</button>
+        </div>
+    </form>
+</div>
+{% endblock %} 

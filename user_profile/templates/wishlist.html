@@ -1,0 +1,326 @@
+{% extends 'userProfile_demo.html' %}
+{% load static %}
+
+{% block profile_content %}
+<style>
+    .btn-custom {
+        background-color: #8B4513;
+        color: white;
+        padding: 8px 20px;
+        border: none;
+        border-radius: 25px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-custom:hover {
+        background-color: #6b3410;
+        transform: translateY(-2px);
+        color: white;
+    }
+    
+    .btn-outline {
+        background-color: transparent;
+        color: #8B4513;
+        padding: 8px 20px;
+        border: 2px solid #8B4513;
+        border-radius: 25px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-outline:hover {
+        background-color: #8B4513;
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .book-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border-radius: 15px;
+        border: none;
+        overflow: hidden;
+    }
+
+    .book-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+
+    .heart-btn {
+        background-color: #8B4513;
+        color: white;
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 10;
+    }
+
+    .heart-btn:hover {
+        transform: scale(1.1);
+        background-color: #6b3410;
+    }
+
+    .card-img-top {
+        height: 240px;
+        object-fit: contain;
+        background-color: #f5e6d3;
+        padding: 1rem;
+    }
+
+    .price-tag {
+        color: #8B4513;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+
+    .original-price {
+        color: #6c757d;
+        text-decoration: line-through;
+        font-size: 0.9rem;
+    }
+    
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+    }
+    
+    .toast {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 10px;
+        padding: 15px 20px;
+        animation: slideIn 0.3s ease-out;
+    }
+    
+    .toast.success {
+        border-left: 4px solid #28a745;
+    }
+    
+    .toast.error {
+        border-left: 4px solid #dc3545;
+    }
+    
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+</style>
+
+<div class="container py-5">
+    <!-- Toast Container for Messages -->
+    <div class="toast-container"></div>
+    
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">My Wishlist</h2>
+        </div>
+    </div>
+
+    {% if wishlist_items %}
+    <div class="row">
+        {% for item in wishlist_items %}
+        <div class="col-md-3 mb-4">
+            <div class="card book-card h-100 border-0 position-relative" data-product-id="{{ item.product.id }}">
+                <button class="heart-btn remove-from-wishlist" data-product-id="{{ item.product.id }}">
+                    <i class="fas fa-heart"></i>
+                </button>
+                <a href="{% url 'product_detail' item.product.slug %}" class="text-decoration-none">
+                    <img src="{{ item.product.cover_image.url }}" class="card-img-top" alt="{{ item.product.title }}">
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title mb-1">{{ item.product.title }}</h5>
+                        <p class="text-muted small mb-2">{{ item.product.author }}</p>
+                        
+                        <div class="mt-auto">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                {% if item.product.get_best_offer %}
+                                    {% with best_offer=item.product.get_best_offer %}
+                                        {% if best_offer.is_valid and best_offer.end_date > now %}
+                                            <span class="price-tag">₹{{ best_offer.get_discounted_price }}</span>
+                                            <span class="original-price">₹{{ item.product.price }}</span>
+                                        {% elif item.product.discount_price %}
+                                            <span class="price-tag">₹{{ item.product.discount_price }}</span>
+                                            <span class="original-price">₹{{ item.product.price }}</span>
+                                        {% else %}
+                                            <span class="price-tag">₹{{ item.product.price }}</span>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% elif item.product.discount_price %}
+                                    <span class="price-tag">₹{{ item.product.discount_price }}</span>
+                                    <span class="original-price">₹{{ item.product.price }}</span>
+                                {% else %}
+                                    <span class="price-tag">₹{{ item.product.price }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </a>
+                <div class="card-footer bg-white border-0 p-0 pt-2">
+                    {% if item.product.stock > 0 %}
+                    <button class="btn-custom w-100" onclick="addToCart(event, {{ item.product.id }}, '{{ item.product.title|escapejs }}')">
+                        <i class="fas fa-cart-plus me-1"></i> Add to Cart
+                    </button>
+                    {% else %}
+                    <button class="btn-custom w-100" disabled>
+                        <i class="fas fa-times me-1"></i> Out of Stock
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <p class="text-muted mb-4">Your wishlist is empty</p>
+        <a href="{% url 'product_page' %}" class="btn-custom">Continue Shopping</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Hidden CSRF Token -->
+{% csrf_token %}
+
+<script>
+    // Remove from wishlist
+    document.querySelectorAll('.remove-from-wishlist').forEach(button => {
+        button.addEventListener('click', function(event) {
+            // Prevent the click from propagating to the parent link
+            event.preventDefault();
+            event.stopPropagation();
+            
+            const productId = this.dataset.productId;
+            const card = this.closest('.col-md-3');
+            
+            fetch(`{% url 'user_profile:toggle_wishlist' product_id=0 %}`.replace('0', productId), {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    card.remove();
+                    // If no more items, reload page to show empty state
+                    if (document.querySelectorAll('.book-card').length === 0) {
+                        location.reload();
+                    }
+                    showToast('Success', data.message, 'success');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error', 'Could not remove item from wishlist', 'error');
+            });
+        });
+    });
+
+    // Add to cart
+    function addToCart(event, productId, productTitle) {
+        // Prevent the click from propagating to the parent link
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const csrfToken = getCookie('csrftoken');
+        const card = document.querySelector(`.book-card[data-product-id="${productId}"]`).closest('.col-md-3');
+        
+        fetch("{% url 'cart_section:add_to_cart' product_id=0 %}".replace('0', productId), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrfToken
+            },
+            body: 'quantity=1',
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showToast('Added to Cart', `${productTitle} has been added to your cart.`, 'success');
+                
+                // Update cart badge
+                const cartBadge = document.querySelector('.cart-badge');
+                if (cartBadge) {
+                    cartBadge.textContent = data.cart_count;
+                } else {
+                    const cartIcon = document.querySelector('.cart-icon');
+                    if (cartIcon) {
+                        const badge = document.createElement('span');
+                        badge.className = 'cart-badge';
+                        badge.textContent = data.cart_count;
+                        cartIcon.parentElement.appendChild(badge);
+                    }
+                }
+
+                // Remove the product card from wishlist
+                card.remove();
+                
+                // If no more items, reload page to show empty state
+                if (document.querySelectorAll('.book-card').length === 0) {
+                    location.reload();
+                }
+            } else {
+                showToast('Error', data.message || 'Could not add item to cart', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error', 'Could not add item to cart', 'error');
+        });
+    }
+
+    // Get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // Show toast notification
+    function showToast(title, message, type = 'success') {
+        const toastContainer = document.querySelector('.toast-container');
+        
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `
+            <div class="toast-header">
+                <strong class="me-auto">${title}</strong>
+            </div>
+            <div class="toast-body">${message}</div>
+        `;
+        
+        toastContainer.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+{% endblock %} 

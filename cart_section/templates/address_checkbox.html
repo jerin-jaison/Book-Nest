@@ -1,0 +1,221 @@
+{% if addresses %}
+    <div class="saved-addresses">
+        {% for address in addresses %}
+        <div class="address-item">
+            <div class="form-check">
+                <input type="radio" 
+                       name="selected_address" 
+                       id="address_{{ address.id }}" 
+                       value="{{ address.id }}"
+                       class="form-check-input"
+                       {% if address.is_default %}checked{% endif %}
+                       required>
+                <label class="form-check-label" for="address_{{ address.id }}">
+                    <div class="address-details">
+                        <strong>{{ address.full_name }}</strong>
+                        <p>{{ address.house_no }}, {{ address.area }}</p>
+                        {% if address.landmark %}
+                            <p>Landmark: {{ address.landmark }}</p>
+                        {% endif %}
+                        <p>{{ address.city }}, {{ address.state }} - {{ address.pincode }}</p>
+                        <p>Phone: {{ address.phone_number }}</p>
+                        {% if address.is_default %}
+                            <span class="badge bg-primary">Default</span>
+                        {% endif %}
+                    </div>
+                </label>
+            </div>
+            <div class="address-actions">
+                <button type="button" 
+                        class="btn btn-sm btn-outline-primary edit-address" 
+                        data-address-id="{{ address.id }}">
+                    Edit
+                </button>
+                <button type="button" 
+                        class="btn btn-sm btn-outline-danger delete-address" 
+                        data-address-id="{{ address.id }}">
+                    Delete
+                </button>
+                {% if not address.is_default %}
+                <button type="button" 
+                        class="btn btn-sm btn-outline-success make-default" 
+                        data-address-id="{{ address.id }}">
+                    Make Default
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<div class="add-new-address mt-3">
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAddressModal">
+        <i class="bi bi-plus-circle"></i> Add New Address
+    </button>
+</div>
+
+<!-- Add/Edit Address Modal -->
+<div class="modal fade" id="addAddressModal" tabindex="-1" aria-labelledby="addAddressModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addAddressModalLabel">Add New Address</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addressForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="full_name" class="form-label">Full Name *</label>
+                        <input type="text" class="form-control" id="full_name" name="full_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="phone_number" class="form-label">Phone Number *</label>
+                        <input type="tel" class="form-control" id="phone_number" name="phone_number" 
+                               pattern="[0-9]{10}" maxlength="10" required>
+                        <small class="text-muted">Enter 10-digit mobile number</small>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col">
+                            <label for="house_no" class="form-label">House/Building No. *</label>
+                            <input type="text" class="form-control" id="house_no" name="house_no" required>
+                        </div>
+                        <div class="col">
+                            <label for="area" class="form-label">Area/Street *</label>
+                            <input type="text" class="form-control" id="area" name="area" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="landmark" class="form-label">Landmark</label>
+                        <input type="text" class="form-control" id="landmark" name="landmark">
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col">
+                            <label for="city" class="form-label">City *</label>
+                            <input type="text" class="form-control" id="city" name="city" required>
+                        </div>
+                        <div class="col">
+                            <label for="state" class="form-label">State *</label>
+                            <input type="text" class="form-control" id="state" name="state" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="pincode" class="form-label">Pincode *</label>
+                        <input type="text" class="form-control" id="pincode" name="pincode" 
+                               pattern="[0-9]{6}" maxlength="6" required>
+                        <small class="text-muted">Enter 6-digit pincode</small>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="is_default" name="is_default">
+                        <label class="form-check-label" for="is_default">Set as default address</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="saveAddress">Save Address</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.saved-addresses {
+    margin-bottom: 20px;
+}
+
+.address-item {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    background-color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.address-details {
+    margin-left: 10px;
+}
+
+.address-details p {
+    margin-bottom: 5px;
+}
+
+.address-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.badge {
+    font-size: 0.8em;
+    padding: 5px 10px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const addressForm = document.getElementById('addressForm');
+    const saveAddressBtn = document.getElementById('saveAddress');
+    const addAddressModal = document.getElementById('addAddressModal');
+    
+    saveAddressBtn.addEventListener('click', function() {
+        if (!addressForm.checkValidity()) {
+            addressForm.reportValidity();
+            return;
+        }
+        
+        const formData = new FormData(addressForm);
+        
+        fetch("{% url 'cart_section:add_address' %}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Close modal and reload page to show new address
+                bootstrap.Modal.getInstance(addAddressModal).hide();
+                location.reload();
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error saving address. Please try again.');
+        });
+    });
+    
+    // Handle make default button clicks
+    document.querySelectorAll('.make-default').forEach(button => {
+        button.addEventListener('click', function() {
+            const addressId = this.dataset.addressId;
+            fetch(`{% url 'cart_section:make_default_address' 0 %}`.replace('0', addressId), {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating default address. Please try again.');
+            });
+        });
+    });
+});
+</script> 

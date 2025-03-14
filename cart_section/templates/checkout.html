@@ -1,0 +1,1535 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-brown: #8B4513;
+        --primary-brown-light: #A0522D;
+        --primary-brown-dark: #6B3410;
+        --accent-beige: #DEB887;
+    }
+
+    .checkout-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    .checkout-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2rem;
+    }
+
+    .addresses-section, .order-summary {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .section-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Address Cards */
+    .address-cards {
+        display: grid;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .address-card {
+        border: 2px solid #eee;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+        position: relative;
+        background: #fff;
+    }
+
+    .address-card:hover {
+        border-color: var(--primary-brown);
+        transform: translateY(-2px);
+    }
+
+    .address-card.selected {
+        border-color: var(--primary-brown);
+        background-color: #FDF5E6;
+    }
+
+    .address-card input[type="radio"] {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+    }
+
+    .address-name {
+        color: var(--primary-brown);
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .address-details {
+        color: #666;
+        line-height: 1.6;
+    }
+
+    .address-actions {
+        margin-top: 1rem;
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    .address-actions button {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        border: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .edit-address-btn {
+        background-color: #F5DEB3;
+        color: var(--primary-brown);
+    }
+
+    .edit-address-btn:hover {
+        background-color: var(--primary-brown);
+        color: white;
+    }
+
+    .delete-address-btn {
+        background-color: #FFE4E1;
+        color: #dc3545;
+    }
+
+    .delete-address-btn:hover:not(:disabled) {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .address-used-badge {
+        background-color: #FDF5E6;
+        color: var(--primary-brown);
+        border-radius: 20px;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        margin-top: 0.75rem;
+    }
+    
+    .address-used-badge i {
+        margin-right: 0.25rem;
+    }
+    
+    button.delete-address-btn:disabled {
+        color: #adb5bd;
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+
+    .add-address-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background-color: #f8f9fa;
+        border: 1px dashed #ccc;
+        border-radius: 8px;
+        padding: 1rem;
+        color: #666;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .add-address-btn:hover {
+        background-color: #f1f3f5;
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
+
+    /* Order Summary */
+    .order-items {
+        margin-bottom: 2rem;
+    }
+
+    .order-item {
+        background-color: #fff;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border: 1px solid #eee;
+    }
+
+    .item-image {
+        width: 80px;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .item-details {
+        flex-grow: 1;
+    }
+
+    .item-title {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .item-author {
+        color: #666;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .item-price {
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+
+    .price-summary {
+        margin-top: 2rem;
+    }
+
+    .summary-row {
+        padding: 1rem 0;
+        border-bottom: 1px solid #eee;
+        font-size: 1rem;
+        color: #555;
+    }
+
+    .summary-row:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .summary-row.total {
+        color: var(--primary-brown);
+        font-size: 1.25rem;
+        font-weight: 600;
+    }
+
+    .place-order-btn {
+        background: var(--primary-brown);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+        font-weight: 500;
+        width: 100%;
+        margin-top: 2rem;
+        transition: all 0.3s ease;
+    }
+
+    .place-order-btn:hover:not(:disabled) {
+        background: var(--primary-brown-dark);
+        transform: translateY(-2px);
+    }
+
+    .place-order-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    /* Address Modal */
+    .modal-body {
+        padding: 2rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1rem;
+    }
+
+    .form-control:focus {
+        border-color: var(--primary-color);
+        outline: none;
+    }
+
+    .default-checkbox {
+        margin-top: 1rem;
+    }
+
+    .card {
+        border: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-radius: 15px;
+        overflow: hidden;
+    }
+
+    .card-header {
+        background-color: #fff;
+        border-bottom: 2px solid #f8f9fa;
+        padding: 1.25rem;
+    }
+
+    .card-header h5 {
+        color: var(--primary-brown);
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .address-display {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+    }
+
+    .address-display p {
+        margin-bottom: 0.5rem;
+    }
+
+    .img-thumbnail {
+        border: 1px solid #eee;
+    }
+
+    .btn-primary {
+        background-color: var(--primary-brown);
+        border: none;
+        border-radius: 25px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        background-color: var(--primary-brown-dark);
+        transform: translateY(-2px);
+    }
+
+    .btn-outline-primary {
+        color: var(--primary-brown);
+        border-color: var(--primary-brown);
+        border-radius: 25px;
+        padding: 0.75rem 1.5rem;
+    }
+
+    .btn-outline-primary:hover {
+        background-color: var(--primary-brown);
+        border-color: var(--primary-brown);
+        color: white;
+    }
+
+    /* Coupon Styles */
+    .accordion-button:not(.collapsed) {
+        background-color: var(--primary-brown);
+        color: white;
+    }
+
+    .accordion-button:focus {
+        box-shadow: none;
+        border-color: var(--primary-brown);
+    }
+
+    .coupon-item {
+        transition: all 0.2s ease;
+        border-left: 0;
+        border-right: 0;
+    }
+
+    .coupon-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .coupon-item:first-child {
+        border-top: 0;
+    }
+
+    .coupon-item .text-success {
+        font-size: 0.9rem;
+    }
+
+    /* Payment Method Styles */
+    .form-check {
+        padding: 1rem;
+        border: 2px solid #eee;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-check:hover {
+        border-color: var(--primary-brown);
+        background-color: #FDF5E6;
+    }
+
+    .form-check-input:checked {
+        background-color: var(--primary-brown);
+        border-color: var(--primary-brown);
+    }
+
+    .form-check-label {
+        color: #444;
+        font-weight: 500;
+        margin-left: 0.5rem;
+    }
+
+    /* Breadcrumb Styles */
+    .breadcrumb {
+        padding: 1rem 0;
+        margin-bottom: 2rem;
+    }
+
+    .breadcrumb-item a {
+        color: var(--primary-brown);
+        text-decoration: none;
+    }
+
+    .breadcrumb-item.active {
+        color: #666;
+    }
+
+    /* Modal Styles */
+    .modal-content {
+        border-radius: 15px;
+        border: none;
+    }
+
+    .modal-header {
+        background-color: var(--primary-brown);
+        color: white;
+        border-bottom: none;
+        border-radius: 15px 15px 0 0;
+    }
+
+    .modal-header .btn-close {
+        color: white;
+        opacity: 1;
+    }
+
+    .form-control {
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        border: 2px solid #eee;
+    }
+
+    .form-control:focus {
+        border-color: var(--primary-brown);
+        box-shadow: none;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Add jQuery -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+
+<!-- Add any page-specific JavaScript here -->
+<script>
+$(document).ready(function() {
+    // Add the showError function
+    function showError(message) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: message,
+            confirmButtonColor: '#8B4513'
+        });
+    }
+
+    // Add the showSuccess function
+    function showSuccess(message) {
+        Swal.fire({
+            icon: 'success',
+            title: 'Success',
+            text: message,
+            confirmButtonColor: '#8B4513'
+        });
+    }
+
+    // Handle order form submission
+    const orderForm = document.getElementById('orderForm');
+    if (orderForm) {
+        orderForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Get selected address
+            const selectedAddressId = $('input[name="selected_address"]:checked').val();
+            
+            if (!selectedAddressId) {
+                showError('Please select a shipping address');
+                return;
+            }
+            
+            // Check COD limit
+            const totalAmount = parseFloat($('#totalAmount').text().replace('₹', '').trim());
+            const paymentMethod = $('input[name="payment_method"]:checked').val();
+            
+            if (paymentMethod === 'COD' && totalAmount > 5000) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Cash on Delivery not available',
+                    text: 'COD is not available for orders above ₹5,000. Please choose online payment.',
+                    confirmButtonColor: '#8B4513'
+                });
+                return;
+            }
+            
+            // Set selected address in hidden field
+            $('#selected_address_id').val(selectedAddressId);
+            
+            // Set coupon code in hidden field
+            $('#hidden_coupon_code').val($('#couponCode').val());
+            
+            // Set payment method
+            $('#selected_payment_method').val(paymentMethod);
+            
+            // Show loading state
+            const submitButton = $(this).find('button[type="submit"]');
+            const originalText = submitButton.text();
+            submitButton.prop('disabled', true).text('Processing...');
+            
+            // Submit form
+            const formData = $(this).serialize();
+            
+            $.ajax({
+                url: "{% url 'cart_section:place_order' %}",
+                type: 'POST',
+                data: formData,
+                success: function(response) {
+                    if (response.status === 'success') {
+                        if (paymentMethod === 'COD') {
+                            // Show success message for COD orders
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Order Placed Successfully',
+                                text: response.message,
+                                confirmButtonColor: '#8B4513'
+                            }).then(() => {
+                                // Redirect to order placed page
+                                window.location.href = '/cart_section/order_placed/';
+                            });
+                        } else {
+                            // For online payment, redirect to payment gateway
+                            window.location.href = response.redirect_url;
+                        }
+                    } else {
+                        // Show error message
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: response.message || 'An error occurred',
+                            confirmButtonColor: '#8B4513'
+                        });
+                        submitButton.prop('disabled', false).text(originalText);
+                    }
+                },
+                error: function(xhr) {
+                    // Show error message
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'An error occurred. Please try again.',
+                        confirmButtonColor: '#8B4513'
+                    });
+                    submitButton.prop('disabled', false).text(originalText);
+                }
+            });
+        });
+    }
+
+    // Handle payment method selection
+    $('input[name="payment_method"]').on('change', function() {
+        const paymentMethod = $(this).val();
+        const totalAmount = parseFloat($('#totalAmount').text().replace('₹', '').trim());
+        
+        if (paymentMethod === 'COD' && totalAmount > 5000) {
+            // Show error message
+            Swal.fire({
+                icon: 'warning',
+                title: 'Cash on Delivery not available',
+                text: 'COD is not available for orders above ₹5,000. Please choose online payment.',
+                confirmButtonColor: '#8B4513'
+            });
+            
+            // Switch back to online payment
+            $('#payment_razorpay').prop('checked', true);
+            $('#selected_payment_method').val('RAZORPAY');
+        } else {
+            $('#selected_payment_method').val(paymentMethod);
+        }
+    });
+
+    // Rest of your JavaScript code...
+});
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home_page' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'cart_section:view_cart' %}">Cart</a></li>
+            <li class="breadcrumb-item active">Checkout</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-7">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Shipping Address</h5>
+                </div>
+                <div class="card-body">
+                    {% if addresses %}
+                        <form id="addressSelectionForm">
+                            <div class="address-cards">
+                                {% for address in addresses %}
+                                    {% if forloop.counter <= 2 %}
+                                        <div class="address-card {% if address.is_default %}selected{% endif %}">
+                                            <input type="radio" name="selected_address" value="{{ address.id }}" 
+                                                   {% if address.is_default %}checked{% endif %} id="address_{{ address.id }}">
+                                            <div class="address-name">{{ address.full_name }}</div>
+                                            <div class="address-details">
+                                                {{ address.house_no }}, {{ address.area }}
+                                                {% if address.landmark %}, {{ address.landmark }}{% endif %}<br>
+                                                {{ address.city }}, {{ address.state }} - {{ address.pincode }}<br>
+                                                Phone: {{ address.phone_number }}
+                                                {% if address.is_used_in_orders %}
+                                                <div class="address-used-badge" title="This address is used in {{ address.orders_count }} order(s) and cannot be deleted">
+                                                    <i class="bi bi-lock"></i> Used in orders
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="address-actions">
+                                                <button type="button" class="edit-address-btn" data-address-id="{{ address.id }}">
+                                                    <i class="bi bi-pencil"></i> Edit
+                                                </button>
+                                                <button type="button" class="delete-address-btn" data-address-id="{{ address.id }}" 
+                                                        {% if address.is_used_in_orders %}disabled title="Cannot delete address used in orders"{% endif %}>
+                                                    <i class="bi bi-trash"></i> Delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+
+                            {% if addresses|length > 2 %}
+                                <div class="accordion mt-3" id="addressAccordion">
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header" id="moreAddressesHeading">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                                    data-bs-target="#moreAddressesCollapse" aria-expanded="false" 
+                                                    aria-controls="moreAddressesCollapse">
+                                                More Addresses ({{ addresses|length|add:"-2" }})
+                                            </button>
+                                        </h2>
+                                        <div id="moreAddressesCollapse" class="accordion-collapse collapse" 
+                                             aria-labelledby="moreAddressesHeading" data-bs-parent="#addressAccordion">
+                                            <div class="accordion-body p-0">
+                                                <div class="address-cards">
+                                                    {% for address in addresses %}
+                                                        {% if forloop.counter > 2 %}
+                                                            <div class="address-card {% if address.is_default %}selected{% endif %}">
+                                                                <input type="radio" name="selected_address" value="{{ address.id }}" 
+                                                                       {% if address.is_default %}checked{% endif %} id="address_{{ address.id }}">
+                                                                <div class="address-name">{{ address.full_name }}</div>
+                                                                <div class="address-details">
+                                                                    {{ address.house_no }}, {{ address.area }}
+                                                                    {% if address.landmark %}, {{ address.landmark }}{% endif %}<br>
+                                                                    {{ address.city }}, {{ address.state }} - {{ address.pincode }}<br>
+                                                                    Phone: {{ address.phone_number }}
+                                                                    {% if address.is_used_in_orders %}
+                                                                    <div class="address-used-badge" title="This address is used in {{ address.orders_count }} order(s) and cannot be deleted">
+                                                                        <i class="bi bi-lock"></i> Used in orders
+                                                                    </div>
+                                                                    {% endif %}
+                                                                </div>
+                                                                <div class="address-actions">
+                                                                    <button type="button" class="edit-address-btn" data-address-id="{{ address.id }}">
+                                                                        <i class="bi bi-pencil"></i> Edit
+                                                                    </button>
+                                                                    <button type="button" class="delete-address-btn" data-address-id="{{ address.id }}" 
+                                                                            {% if address.is_used_in_orders %}disabled title="Cannot delete address used in orders"{% endif %}>
+                                                                        <i class="bi bi-trash"></i> Delete
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </form>
+                        
+                        <div class="mt-3">
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAddressModal">
+                                <i class="bi bi-plus-circle"></i> Add New Address
+                            </button>
+                        </div>
+                    {% elif account_details and account_details.house_name %}
+                        <div class="address-display mb-3">
+                            <p><strong>{{ account_details.first_name }} {{ account_details.last_name }}</strong></p>
+                            <p>{{ account_details.house_name }}</p>
+                            {% if account_details.landmark %}
+                                <p>Landmark: {{ account_details.landmark }}</p>
+                            {% endif %}
+                            <p>{{ account_details.city }}, {{ account_details.state }}</p>
+                            <p>PIN: {{ account_details.pin_code }}</p>
+                            <p>Country: {{ account_details.country|default:"India" }}</p>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{% url 'user_profile:address' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-pencil"></i> Edit Address
+                            </a>
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAddressModal">
+                                <i class="bi bi-plus-circle"></i> Add New Address
+                            </button>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <p class="mb-3">No shipping address found. Please add your address to continue.</p>
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAddressModal">
+                                <i class="bi bi-plus-circle"></i> Add Address
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Order Summary</h5>
+                </div>
+                <div class="card-body">
+                    {% for item in cart_items %}
+                        <div class="d-flex mb-3">
+                            <img src="{{ item.product.cover_image.url }}" alt="{{ item.product.title }}" 
+                                 class="img-thumbnail" style="width: 60px; height: 80px; object-fit: cover;">
+                            <div class="ms-3">
+                                <h6 class="mb-0">{{ item.product.title }}</h6>
+                                <small class="text-muted">Quantity: {{ item.quantity }}</small>
+                                <p class="mb-0">₹{{ item.total_price }}</p>
+                            </div>
+                        </div>
+                    {% endfor %}
+
+                    <hr>
+
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Subtotal:</span>
+                        <span>₹{{ subtotal }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Discount ({{ discount_percentage }}%):</span>
+                        <span class="text-danger">-₹{{ discount }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Delivery Charge:</span>
+                        <span>₹{{ delivery_charge }}</span>
+                    </div>
+                    
+                    <!-- Coupon Section -->
+                    <div class="mb-3">
+                        <h6 class="mb-2">Apply Coupon</h6>
+                        {% if eligible_coupons %}
+                            <div class="mb-3">
+                                <div class="accordion" id="couponAccordion">
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header" id="availableCouponsHeading">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                                    data-bs-target="#availableCouponsCollapse" aria-expanded="false" 
+                                                    aria-controls="availableCouponsCollapse">
+                                                Available Coupons ({{ eligible_coupons|length }})
+                                            </button>
+                                        </h2>
+                                        <div id="availableCouponsCollapse" class="accordion-collapse collapse" 
+                                             aria-labelledby="availableCouponsHeading" data-bs-parent="#couponAccordion">
+                                            <div class="accordion-body p-0">
+                                                <div class="list-group list-group-flush">
+                                                    {% for coupon in eligible_coupons %}
+                                                        <button type="button" class="list-group-item list-group-item-action coupon-item" 
+                                                                data-coupon-code="{{ coupon.code }}">
+                                                            <div class="d-flex justify-content-between align-items-center">
+                                                                <div>
+                                                                    <strong>{{ coupon.code }}</strong>
+                                                                    {% if coupon.is_best_value %}
+                                                                        <span class="badge bg-success ms-2">Best Value</span>
+                                                                    {% endif %}
+                                                                    <div class="small text-muted">
+                                                                        Min. Purchase: ₹{{ coupon.min_purchase_amount }}
+                                                                    </div>
+                                                                </div>
+                                                                <div class="text-success">
+                                                                    <strong>{{ coupon.discount_display }}</strong>
+                                                                </div>
+                                                            </div>
+                                                        </button>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info py-2 mb-3">
+                                <small>No eligible coupons available for this order.</small>
+                            </div>
+                        {% endif %}
+                        
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="couponCode" placeholder="Enter coupon code" {% if applied_coupon %}value="{{ applied_coupon }}" disabled{% endif %}>
+                            {% if applied_coupon %}
+                                <button class="btn btn-outline-danger" type="button" id="removeCouponBtn">Remove</button>
+                            {% else %}
+                                <button class="btn btn-outline-secondary" type="button" id="applyCouponBtn">Apply</button>
+                            {% endif %}
+                        </div>
+                        <div id="couponMessage" class="mt-2"></div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mb-2" id="couponDiscountRow" {% if not applied_coupon %}style="display: none !important;"{% endif %}>
+                        <span>Coupon Discount:</span>
+                        <span class="text-danger" id="couponDiscount">{% if coupon_discount %}-₹{{ coupon_discount }}{% else %}-₹0{% endif %}</span>
+                    </div>
+                    
+                    <hr>
+                    <div class="d-flex justify-content-between mb-3">
+                        <strong>Total:</strong>
+                        <strong id="totalAmount">₹{{ total_amount }}</strong>
+                    </div>
+
+                    <!-- Payment Method Selection -->
+                    <div class="mb-4">
+                        <h5 class="mb-3">Payment Method</h5>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="payment_method" id="payment_cod" value="COD" checked>
+                            <label class="form-check-label" for="payment_cod">
+                                Cash on Delivery (COD)
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="payment_method" id="payment_razorpay" value="RAZORPAY">
+                            <label class="form-check-label" for="payment_razorpay">
+                                Pay Online (Credit/Debit Card, UPI, Netbanking)
+                            </label>
+                        </div>
+                    </div>
+
+                    <form id="orderForm" method="POST" action="{% url 'cart_section:place_order' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="selected_address_id" id="selected_address_id" value="">
+                        <input type="hidden" name="coupon_code" id="hidden_coupon_code" value="">
+                        <input type="hidden" name="payment_method" id="selected_payment_method" value="COD">
+                        <button type="submit" class="btn btn-primary w-100" 
+                                {% if not addresses and not account_details.house_name %}disabled{% endif %}>
+                            Place Order
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Address Modal -->
+<div class="modal fade" id="addAddressModal" tabindex="-1" aria-labelledby="addAddressModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addAddressModalLabel">Add New Address</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addAddressForm">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="full_name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="full_name" name="full_name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="phone_number" class="form-label">Phone Number</label>
+                            <input type="text" class="form-control" id="phone_number" name="phone_number" required maxlength="10" pattern="[0-9]{10}">
+                            <small class="text-muted">10-digit number without spaces or special characters</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="house_no" class="form-label">House No/Name</label>
+                            <input type="text" class="form-control" id="house_no" name="house_no" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="area" class="form-label">Area/Street</label>
+                            <input type="text" class="form-control" id="area" name="area" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="landmark" class="form-label">Landmark (Optional)</label>
+                        <input type="text" class="form-control" id="landmark" name="landmark">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="city" class="form-label">City</label>
+                            <input type="text" class="form-control" id="city" name="city" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="state" class="form-label">State</label>
+                            <input type="text" class="form-control" id="state" name="state" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="pincode" class="form-label">PIN Code</label>
+                        <input type="text" class="form-control" id="pincode" name="pincode" required maxlength="6" pattern="[0-9]{6}">
+                        <small class="text-muted">6-digit PIN code</small>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="is_default" name="is_default">
+                        <label class="form-check-label" for="is_default">Set as default address</label>
+                    </div>
+                    
+                    <div class="alert alert-danger d-none" id="addressFormError"></div>
+                    <div class="alert alert-success d-none" id="addressFormSuccess"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveAddressBtn">Save Address</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Address Modal -->
+<div class="modal fade" id="editAddressModal" tabindex="-1" aria-labelledby="editAddressModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editAddressModalLabel">Edit Address</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editAddressForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="edit_address_id" name="address_id">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_full_name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="edit_full_name" name="full_name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_phone_number" class="form-label">Phone Number</label>
+                            <input type="text" class="form-control" id="edit_phone_number" name="phone_number" required maxlength="10" pattern="[0-9]{10}">
+                            <small class="text-muted">10-digit number without spaces or special characters</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_house_no" class="form-label">House No/Name</label>
+                            <input type="text" class="form-control" id="edit_house_no" name="house_no" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_area" class="form-label">Area/Street</label>
+                            <input type="text" class="form-control" id="edit_area" name="area" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_landmark" class="form-label">Landmark (Optional)</label>
+                        <input type="text" class="form-control" id="edit_landmark" name="landmark">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_city" class="form-label">City</label>
+                            <input type="text" class="form-control" id="edit_city" name="city" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_state" class="form-label">State</label>
+                            <input type="text" class="form-control" id="edit_state" name="state" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_pincode" class="form-label">PIN Code</label>
+                        <input type="text" class="form-control" id="edit_pincode" name="pincode" required maxlength="6" pattern="[0-9]{6}">
+                        <small class="text-muted">6-digit PIN code</small>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="edit_is_default" name="is_default">
+                        <label class="form-check-label" for="edit_is_default">Set as default address</label>
+                    </div>
+                    
+                    <div class="alert alert-danger d-none" id="editAddressFormError"></div>
+                    <div class="alert alert-success d-none" id="editAddressFormSuccess"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="updateAddressBtn">Update Address</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle address selection
+    const addressCards = document.querySelectorAll('.address-card');
+    const selectedAddressIdInput = document.getElementById('selected_address_id');
+    
+    // Set initial selected address
+    const initialSelectedRadio = document.querySelector('input[name="selected_address"]:checked');
+    if (initialSelectedRadio) {
+        selectedAddressIdInput.value = initialSelectedRadio.value;
+    }
+    
+    addressCards.forEach(card => {
+        card.addEventListener('click', function(e) {
+            // Don't select the address if clicking on edit or delete buttons
+            if (e.target.closest('.address-actions')) {
+                return;
+            }
+            
+            // Find the radio input inside this card
+            const radio = this.querySelector('input[type="radio"]');
+            if (radio) {
+                // Uncheck all radios
+                document.querySelectorAll('input[name="selected_address"]').forEach(r => {
+                    r.checked = false;
+                    r.closest('.address-card').classList.remove('selected');
+                });
+                
+                // Check this radio
+                radio.checked = true;
+                this.classList.add('selected');
+                
+                // Update the hidden input for the form
+                selectedAddressIdInput.value = radio.value;
+            }
+        });
+    });
+
+    // Handle edit address buttons
+    const editAddressBtns = document.querySelectorAll('.edit-address-btn');
+    const editAddressModal = new bootstrap.Modal(document.getElementById('editAddressModal'));
+    const editAddressForm = document.getElementById('editAddressForm');
+    const editAddressFormError = document.getElementById('editAddressFormError');
+    const editAddressFormSuccess = document.getElementById('editAddressFormSuccess');
+    
+    editAddressBtns.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const addressId = this.getAttribute('data-address-id');
+            
+            // Reset form and alerts
+            editAddressForm.reset();
+            editAddressFormError.classList.add('d-none');
+            editAddressFormSuccess.classList.add('d-none');
+            
+            // Fetch address details
+            fetch(`{% url 'cart_section:get_address' 0 %}`.replace('0', addressId))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Populate form with address details
+                        document.getElementById('edit_address_id').value = data.address.id;
+                        document.getElementById('edit_full_name').value = data.address.full_name;
+                        document.getElementById('edit_phone_number').value = data.address.phone_number;
+                        document.getElementById('edit_pincode').value = data.address.pincode;
+                        document.getElementById('edit_house_no').value = data.address.house_no;
+                        document.getElementById('edit_area').value = data.address.area;
+                        document.getElementById('edit_landmark').value = data.address.landmark || '';
+                        document.getElementById('edit_city').value = data.address.city;
+                        document.getElementById('edit_state').value = data.address.state;
+                        document.getElementById('edit_is_default').checked = data.address.is_default;
+                        
+                        // Show modal
+                        editAddressModal.show();
+                    } else {
+                        alert(data.message || 'Error fetching address details');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error fetching address details. Please try again.');
+                });
+        });
+    });
+    
+    // Handle update address button
+    const updateAddressBtn = document.getElementById('updateAddressBtn');
+    if (updateAddressBtn) {
+        updateAddressBtn.addEventListener('click', function() {
+            // Reset alerts
+            editAddressFormError.classList.add('d-none');
+            editAddressFormSuccess.classList.add('d-none');
+            
+            // Form validation
+            if (!editAddressForm.checkValidity()) {
+                editAddressForm.reportValidity();
+                return;
+            }
+            
+            // Get address ID
+            const addressId = document.getElementById('edit_address_id').value;
+            
+            // Collect form data
+            const formData = new FormData(editAddressForm);
+            
+            // Send AJAX request
+            fetch(`{% url 'cart_section:update_address' 0 %}`.replace('0', addressId), {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Show success message
+                    editAddressFormSuccess.textContent = data.message;
+                    editAddressFormSuccess.classList.remove('d-none');
+                    
+                    // Close modal after a delay
+                    setTimeout(() => {
+                        editAddressModal.hide();
+                        
+                        // Reload the page to show the updated address
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    // Show error message
+                    editAddressFormError.textContent = data.message;
+                    editAddressFormError.classList.remove('d-none');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                editAddressFormError.textContent = 'An error occurred. Please try again.';
+                editAddressFormError.classList.remove('d-none');
+            });
+        });
+    }
+    
+    // Handle delete address buttons
+    const deleteAddressBtns = document.querySelectorAll('.delete-address-btn');
+    
+    deleteAddressBtns.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const addressId = this.getAttribute('data-address-id');
+            
+            if (confirm('Are you sure you want to delete this address?')) {
+                // Send AJAX request
+                fetch(`{% url 'cart_section:delete_address' 0 %}`.replace('0', addressId), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Show success message
+                        alert(data.message);
+                        
+                        // Reload the page to update the address list
+                        window.location.reload();
+                    } else {
+                        // Show error message with a more user-friendly approach
+                        if (data.message.includes('used in existing orders')) {
+                            // Create a Bootstrap modal for better user experience
+                            const modalHtml = `
+                                <div class="modal fade" id="addressErrorModal" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Cannot Delete Address</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>${data.message}</p>
+                                                <p>This address is linked to your order history. For record-keeping purposes, addresses used in completed orders cannot be deleted.</p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Understood</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            // Append modal to body
+                            const modalContainer = document.createElement('div');
+                            modalContainer.innerHTML = modalHtml;
+                            document.body.appendChild(modalContainer);
+                            
+                            // Show the modal
+                            const errorModal = new bootstrap.Modal(document.getElementById('addressErrorModal'));
+                            errorModal.show();
+                            
+                            // Remove modal from DOM after it's hidden
+                            document.getElementById('addressErrorModal').addEventListener('hidden.bs.modal', function() {
+                                this.remove();
+                            });
+                        } else {
+                            // For other errors, use a simple alert
+                            alert(data.message || 'Error deleting address');
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error deleting address. Please try again.');
+                });
+            }
+        });
+    });
+
+    // Handle payment method selection
+    $('input[name="payment_method"]').on('change', function() {
+        const paymentMethod = $(this).val();
+        const totalAmount = parseFloat($('#totalAmount').text().replace('₹', '').trim());
+        
+        if (paymentMethod === 'COD' && totalAmount > 5000) {
+            // Show error message
+            Swal.fire({
+                icon: 'warning',
+                title: 'Cash on Delivery not available',
+                text: 'COD is not available for orders above ₹5,000. Please choose online payment.',
+                confirmButtonColor: '#8B4513'
+            });
+            
+            // Switch back to online payment
+            $('#payment_razorpay').prop('checked', true);
+            $('#selected_payment_method').val('RAZORPAY');
+        } else {
+            $('#selected_payment_method').val(paymentMethod);
+        }
+    });
+
+    // Add Address Form Handling
+    const addAddressForm = document.getElementById('addAddressForm');
+    const saveAddressBtn = document.getElementById('saveAddressBtn');
+    const addressFormError = document.getElementById('addressFormError');
+    const addressFormSuccess = document.getElementById('addressFormSuccess');
+
+    if (saveAddressBtn) {
+        saveAddressBtn.addEventListener('click', function() {
+            // Reset alerts
+            addressFormError.classList.add('d-none');
+            addressFormSuccess.classList.add('d-none');
+            
+            // Form validation
+            const form = document.getElementById('addAddressForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            // Collect form data
+            const formData = new FormData(addAddressForm);
+            
+            // Send AJAX request
+            fetch('{% url "cart_section:add_address" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Show success message
+                    addressFormSuccess.textContent = data.message;
+                    addressFormSuccess.classList.remove('d-none');
+                    
+                    // Reset form
+                    addAddressForm.reset();
+                    
+                    // Close modal after a delay
+                    setTimeout(() => {
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('addAddressModal'));
+                        modal.hide();
+                        
+                        // Reload the page to show the new address
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    // Show error message
+                    addressFormError.textContent = data.message;
+                    addressFormError.classList.remove('d-none');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                addressFormError.textContent = 'An error occurred. Please try again.';
+                addressFormError.classList.remove('d-none');
+            });
+        });
+    }
+
+    // Handle coupon selection from the list
+    document.querySelectorAll('.coupon-item').forEach(item => {
+        item.addEventListener('click', function() {
+            const couponCode = this.getAttribute('data-coupon-code');
+            
+            // Close the accordion
+            const accordionButton = document.querySelector('[data-bs-target="#availableCouponsCollapse"]');
+            const bsCollapse = bootstrap.Collapse.getInstance(document.getElementById('availableCouponsCollapse'));
+            if (bsCollapse) {
+                bsCollapse.hide();
+            }
+            
+            // Set the coupon code in the input field
+            const couponInput = document.getElementById('couponCode');
+            couponInput.value = couponCode;
+            
+            // Apply the coupon
+            applyCoupon(couponCode);
+        });
+    });
+    
+    // Handle coupon application
+    document.getElementById('applyCouponBtn')?.addEventListener('click', function() {
+        const couponCode = document.getElementById('couponCode').value.trim();
+        if (!couponCode) {
+            showCouponMessage('Please enter a coupon code', 'danger');
+            return;
+        }
+        
+        applyCoupon(couponCode);
+    });
+    
+    // Handle coupon removal
+    document.getElementById('removeCouponBtn')?.addEventListener('click', function() {
+        removeCoupon();
+    });
+    
+    function applyCoupon(couponCode) {
+        // Get CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        // Send request to apply coupon
+        fetch('{% url "cart_section:apply_coupon" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrfToken
+            },
+            body: `coupon_code=${couponCode}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showCouponMessage(data.message, 'success');
+                
+                // Show coupon discount row
+                const couponDiscountRow = document.getElementById('couponDiscountRow');
+                couponDiscountRow.style.display = 'flex !important';
+                couponDiscountRow.style.display = 'flex';
+                
+                // Update coupon discount amount
+                document.getElementById('couponDiscount').textContent = `-${data.discount_text}`;
+                
+                // Update total amount
+                document.getElementById('totalAmount').textContent = `₹${data.new_total}`;
+                
+                // Store coupon code in hidden input
+                document.getElementById('hidden_coupon_code').value = couponCode;
+                
+                // Update UI to show remove button instead of apply button
+                updateCouponUI(true, couponCode);
+            } else {
+                showCouponMessage(data.message, 'danger');
+                
+                // If there was a previously applied coupon and an invalid one is entered,
+                // reset the UI to show the original total
+                if (document.getElementById('hidden_coupon_code').value) {
+                    // Remove any previously applied coupon
+                    removeCoupon();
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showCouponMessage('An error occurred while applying the coupon', 'danger');
+        });
+    }
+    
+    function removeCoupon() {
+        // Get CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        // Send request to remove coupon
+        fetch('{% url "cart_section:remove_coupon" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showCouponMessage(data.message, 'info');
+                
+                // Hide coupon discount row
+                const couponDiscountRow = document.getElementById('couponDiscountRow');
+                couponDiscountRow.style.display = 'none !important';
+                
+                // Update total amount
+                document.getElementById('totalAmount').textContent = `₹${data.new_total}`;
+                
+                // Clear coupon code in hidden input
+                document.getElementById('hidden_coupon_code').value = '';
+                
+                // Update UI to show apply button instead of remove button
+                updateCouponUI(false);
+            } else {
+                showCouponMessage(data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showCouponMessage('An error occurred while removing the coupon', 'danger');
+        });
+    }
+    
+    function updateCouponUI(isApplied, couponCode = '') {
+        const couponInput = document.getElementById('couponCode');
+        const couponButtonContainer = couponInput.nextElementSibling;
+        
+        if (isApplied) {
+            // Update input
+            couponInput.value = couponCode;
+            couponInput.disabled = true;
+            
+            // Replace apply button with remove button
+            couponButtonContainer.outerHTML = '<button class="btn btn-outline-danger" type="button" id="removeCouponBtn">Remove</button>';
+            
+            // Add event listener to the new remove button
+            document.getElementById('removeCouponBtn').addEventListener('click', function() {
+                removeCoupon();
+            });
+        } else {
+            // Update input
+            couponInput.value = '';
+            couponInput.disabled = false;
+            
+            // Replace remove button with apply button
+            couponButtonContainer.outerHTML = '<button class="btn btn-outline-secondary" type="button" id="applyCouponBtn">Apply</button>';
+            
+            // Add event listener to the new apply button
+            document.getElementById('applyCouponBtn').addEventListener('click', function() {
+                const couponCode = document.getElementById('couponCode').value.trim();
+                if (!couponCode) {
+                    showCouponMessage('Please enter a coupon code', 'danger');
+                    return;
+                }
+                
+                // Get CSRF token
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                
+                // Send request to apply coupon
+                fetch('{% url "cart_section:apply_coupon" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: `coupon_code=${couponCode}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showCouponMessage(data.message, 'success');
+                        
+                        // Show coupon discount row
+                        const couponDiscountRow = document.getElementById('couponDiscountRow');
+                        couponDiscountRow.style.display = 'flex !important';
+                        couponDiscountRow.style.display = 'flex';
+                        
+                        // Update coupon discount amount
+                        document.getElementById('couponDiscount').textContent = `-${data.discount_text}`;
+                        
+                        // Update total amount
+                        document.getElementById('totalAmount').textContent = `₹${data.new_total}`;
+                        
+                        // Store coupon code in hidden input
+                        document.getElementById('hidden_coupon_code').value = couponCode;
+                        
+                        // Update UI to show remove button instead of apply button
+                        updateCouponUI(true, couponCode);
+                    } else {
+                        showCouponMessage(data.message, 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showCouponMessage('An error occurred while applying the coupon', 'danger');
+                });
+            });
+        }
+    }
+    
+    function showCouponMessage(message, type) {
+        const messageElement = document.getElementById('couponMessage');
+        messageElement.innerHTML = `<div class="alert alert-${type} py-2 px-3">${message}</div>`;
+        
+        // Clear message after 5 seconds
+        setTimeout(() => {
+            messageElement.innerHTML = '';
+        }, 5000);
+    }
+
+    function showError(message) {
+        showCouponMessage(message, 'danger');
+    }
+});
+</script>
+{% endblock %}
+
+

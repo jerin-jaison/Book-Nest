@@ -1,0 +1,732 @@
+{% extends 'admin_sidebar.html' %}
+
+{% block extra_css %}
+    <style>
+    :root {
+        --primary-color: #8B4513;
+        --primary-hover: #6b3410;
+        --light-brown: #f5e6d3;
+        --bg-light: #fafafa;
+    }
+
+    .stats-card {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+
+    .stats-card:hover {
+        transform: translateY(-5px);
+    }
+
+        .chart-container {
+        position: relative;
+        height: 250px;
+        margin-top: 1rem;
+    }
+
+    .mini-chart {
+        height: 80px;
+    }
+
+        .progress-bar {
+        background-color: var(--primary-color);
+        }
+
+        .badge.bg-warning {
+            background-color: #ffc107 !important;
+        }
+
+        .badge.bg-success {
+            background-color: #198754 !important;
+        }
+
+    .badge.bg-pending { background-color: #fff3cd !important; color: #856404; }
+    .badge.bg-shipped { background-color: #cce5ff !important; color: #004085; }
+    .badge.bg-delivered { background-color: #d4edda !important; color: #155724; }
+    .badge.bg-cancelled { background-color: #f8d7da !important; color: #721c24; }
+
+    .btn-custom {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 8px 20px;
+        border: none;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-custom:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-2px);
+        color: white;
+    }
+
+    .btn-outline {
+        background-color: transparent;
+        color: var(--primary-color);
+        border: 2px solid var(--primary-color);
+        padding: 8px 20px;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-outline:hover {
+        background-color: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .search-input {
+        border-radius: 25px;
+        padding: 10px 20px;
+        border: 2px solid #dee2e6;
+        transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+        border-color: var(--primary-color);
+        box-shadow: none;
+    }
+
+    .filter-dropdown {
+        border-radius: 25px;
+        padding: 10px 20px;
+        border: 2px solid #dee2e6;
+    }
+
+    .table th {
+        background-color: var(--light-brown);
+        color: var(--primary-color);
+        font-weight: 600;
+        padding: 1rem;
+    }
+
+    .table td {
+        vertical-align: middle;
+        padding: 1rem;
+    }
+
+    .order-item {
+            display: flex;
+            align-items: center;
+        gap: 1rem;
+    }
+
+    .order-image {
+        width: 50px;
+        height: 65px;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+
+    .summary-icon {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+            font-size: 1.5rem;
+        margin-right: 1rem;
+    }
+
+    .bg-light-primary {
+        background-color: var(--light-brown);
+        color: var(--primary-color);
+    }
+
+    .bg-light-success {
+        background-color: #d1e7dd;
+        color: #0f5132;
+    }
+
+    .bg-light-warning {
+        background-color: #fff3cd;
+        color: #664d03;
+    }
+
+    .bg-light-info {
+        background-color: #cff4fc;
+        color: #055160;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header Section -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0" style="color: var(--primary-color);">
+            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+        </h2>
+        <div class="d-flex gap-2">
+            <button class="btn-outline" onclick="exportSalesData()">
+                <i class="fas fa-download me-2"></i>Export Sales Data
+            </button>
+            <button class="btn-custom" data-bs-toggle="modal" data-bs-target="#dateRangeModal">
+                <i class="fas fa-calendar me-2"></i>Custom Date Range
+            </button>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="card stats-card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <select class="form-select filter-dropdown" id="timeRangeFilter">
+                        <option value="today" {% if time_range == 'today' %}selected{% endif %}>Today</option>
+                        <option value="week" {% if time_range == 'week' %}selected{% endif %}>This Week</option>
+                        <option value="month" {% if time_range == 'month' %}selected{% endif %}>This Month</option>
+                        <option value="year" {% if time_range == 'year' %}selected{% endif %}>This Year</option>
+                        <option value="all" {% if time_range == 'all' %}selected{% endif %}>All Time</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select filter-dropdown" id="categoryFilter">
+                        <option value="">All Categories</option>
+                        {% for category in categories %}
+                        <option value="{{ category.id }}" {% if selected_category == category.id %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-outline w-100" onclick="applyFilters()">
+                        <i class="fas fa-filter me-2"></i>Apply Filters
+                    </button>
+                </div>
+            </div>
+                </div>
+            </div>
+
+                <!-- Stats Cards -->
+                <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="summary-icon bg-light-primary">
+                            <i class="fas fa-rupee-sign"></i>
+                        </div>
+                        <div>
+                            <h6 class="text-muted mb-0">Total Sales</h6>
+                            <h3 class="mb-0">₹{{ total_sales|floatformat:2 }}</h3>
+                        </div>
+                    </div>
+                    <div class="chart-container mini-chart">
+                        <canvas id="salesMiniChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+                        <div class="card stats-card">
+                            <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="summary-icon bg-light-success">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div>
+                            <h6 class="text-muted mb-0">Customers</h6>
+                            <h3 class="mb-0">{{ total_customers }}</h3>
+                        </div>
+                    </div>
+                    <div class="chart-container mini-chart">
+                        <canvas id="customersMiniChart"></canvas>
+                    </div>
+                </div>
+                                </div>
+                            </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="summary-icon bg-light-warning">
+                            <i class="fas fa-shopping-cart"></i>
+                        </div>
+                        <div>
+                            <h6 class="text-muted mb-0">Orders</h6>
+                            <h3 class="mb-0">{{ total_orders }}</h3>
+                        </div>
+                    </div>
+                    <div class="chart-container mini-chart">
+                        <canvas id="ordersMiniChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+                        <div class="card stats-card">
+                            <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="summary-icon bg-light-info">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <div>
+                            <h6 class="text-muted mb-0">Products</h6>
+                            <h3 class="mb-0">{{ total_products }}</h3>
+                        </div>
+                    </div>
+                    <div class="progress mt-3">
+                        <div class="progress-bar" role="progressbar" style="width: {{ stock_percentage }}%"></div>
+                    </div>
+                    <small class="text-muted">{{ low_stock_count }} products low in stock</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">Sales Overview</h5>
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-sm btn-outline" onclick="updateSalesChart('daily')">Daily</button>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="updateSalesChart('weekly')">Weekly</button>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="updateSalesChart('monthly')">Monthly</button>
+                        </div>
+                    </div>
+                                <div class="chart-container">
+                        <canvas id="salesChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card stats-card">
+                            <div class="card-body">
+                    <h5 class="card-title">Order Status</h5>
+                    <div class="chart-container">
+                        <canvas id="orderStatusChart"></canvas>
+                    </div>
+                    <div class="mt-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span><i class="fas fa-circle text-warning me-2"></i>Pending</span>
+                            <span>{{ pending_percentage }}%</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span><i class="fas fa-circle text-primary me-2"></i>Shipped</span>
+                            <span>{{ shipped_percentage }}%</span>
+                                </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span><i class="fas fa-circle text-success me-2"></i>Delivered</span>
+                            <span>{{ delivered_percentage }}%</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span><i class="fas fa-circle text-danger me-2"></i>Cancelled</span>
+                            <span>{{ cancelled_percentage }}%</span>
+                        </div>
+                    </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+    <!-- Recent Orders and Best Selling Section -->
+    <div class="row">
+        <div class="col-md-8">
+                <div class="card stats-card mb-4">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0">Recent Orders</h5>
+                        <a href="{% url 'admin_side:order_management' %}" class="text-decoration-none" style="color: var(--primary-color);">View All</a>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                    <th>Order ID</th>
+                                    <th>Customer</th>
+                                        <th>Date</th>
+                                        <th>Total</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                {% for order in recent_orders %}
+                                <tr>
+                                    <td>#{{ order.order_id }}</td>
+                                    <td>{{ order.user.get_full_name|default:order.user.username }}</td>
+                                    <td>{{ order.created_at|date:"d M, Y" }}</td>
+                                    <td>₹{{ order.total }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ order.status|lower }}">{{ order.status }}</span>
+                                    </td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                    <td colspan="5" class="text-center">No recent orders found</td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+        </div>
+        <div class="col-md-4">
+                <div class="card stats-card">
+                    <div class="card-body">
+                    <h5 class="card-title">Best Selling Products</h5>
+                    <div class="chart-container">
+                        <canvas id="topProductsChart"></canvas>
+                    </div>
+                        <div class="mt-4">
+                        {% for product in top_products %}
+                            <div class="d-flex justify-content-between mb-2">
+                            <span>{{ product.product__title|truncatechars:25 }}</span>
+                            <span>₹{{ product.total_sales|floatformat:2 }}</span>
+                        </div>
+                        {% empty %}
+                        <div class="text-center">No sales data available</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Date Range Modal -->
+<div class="modal fade" id="dateRangeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Select Date Range</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="dateRangeForm">
+                    <div class="mb-3">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="startDate" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="endDate" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-custom" onclick="applyDateRange()">Apply</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Chart.js configuration
+    Chart.defaults.font.family = "'Poppins', 'Helvetica', 'Arial', sans-serif";
+    Chart.defaults.color = '#6c757d';
+    Chart.defaults.plugins.legend.display = false;
+
+    // Sales Mini Chart
+    const salesMiniCtx = document.getElementById('salesMiniChart').getContext('2d');
+    const salesMiniChart = new Chart(salesMiniCtx, {
+        type: 'line',
+        data: {
+            labels: {{ sales_trend_labels|safe }},
+            datasets: [{
+                data: {{ sales_trend_data|safe }},
+                borderColor: '#8B4513',
+                backgroundColor: 'rgba(139, 69, 19, 0.1)',
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    enabled: false
+                }
+            },
+            scales: {
+                x: {
+                    display: false
+                },
+                y: {
+                    display: false
+                }
+            },
+            elements: {
+                point: {
+                    radius: 0
+                }
+            }
+        }
+    });
+
+    // Customers Mini Chart
+    const customersMiniCtx = document.getElementById('customersMiniChart').getContext('2d');
+    const customersMiniChart = new Chart(customersMiniCtx, {
+        type: 'line',
+        data: {
+            labels: {{ customer_trend_labels|safe }},
+            datasets: [{
+                data: {{ customer_trend_data|safe }},
+                borderColor: '#198754',
+                backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    enabled: false
+                }
+            },
+            scales: {
+                x: {
+                    display: false
+                },
+                y: {
+                    display: false
+                }
+            },
+            elements: {
+                point: {
+                    radius: 0
+                }
+            }
+        }
+    });
+
+    // Orders Mini Chart
+    const ordersMiniCtx = document.getElementById('ordersMiniChart').getContext('2d');
+    const ordersMiniChart = new Chart(ordersMiniCtx, {
+        type: 'line',
+        data: {
+            labels: {{ order_trend_labels|safe }},
+            datasets: [{
+                data: {{ order_trend_data|safe }},
+                borderColor: '#ffc107',
+                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    enabled: false
+                }
+            },
+            scales: {
+                x: {
+                    display: false
+                },
+                y: {
+                    display: false
+                }
+            },
+            elements: {
+                point: {
+                    radius: 0
+                }
+            }
+        }
+    });
+
+    // Sales Chart
+    const salesChartCtx = document.getElementById('salesChart').getContext('2d');
+    const salesChart = new Chart(salesChartCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ sales_chart_labels|safe }},
+            datasets: [{
+                label: 'Sales',
+                data: {{ sales_chart_data|safe }},
+                backgroundColor: 'rgba(139, 69, 19, 0.7)',
+                borderColor: '#8B4513',
+                borderWidth: 1,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return '₹' + context.raw.toLocaleString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '₹' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Order Status Chart
+    const orderStatusCtx = document.getElementById('orderStatusChart').getContext('2d');
+    const orderStatusChart = new Chart(orderStatusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Pending', 'Shipped', 'Delivered', 'Cancelled'],
+            datasets: [{
+                data: [
+                    {{ pending_orders }}, 
+                    {{ shipped_orders }}, 
+                    {{ delivered_orders }}, 
+                    {{ cancelled_orders }}
+                ],
+                backgroundColor: [
+                    '#ffc107',  // warning - pending
+                    '#0d6efd',  // primary - shipped
+                    '#198754',  // success - delivered
+                    '#dc3545'   // danger - cancelled
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            cutout: '70%'
+        }
+    });
+
+    // Top Products Chart
+    const topProductsCtx = document.getElementById('topProductsChart').getContext('2d');
+    const topProductsChart = new Chart(topProductsCtx, {
+        type: 'pie',
+        data: {
+            labels: {{ top_products_labels|safe }},
+            datasets: [{
+                data: {{ top_products_data|safe }},
+                backgroundColor: [
+                    'rgba(139, 69, 19, 0.8)',
+                    'rgba(139, 69, 19, 0.7)',
+                    'rgba(139, 69, 19, 0.6)',
+                    'rgba(139, 69, 19, 0.5)',
+                    'rgba(139, 69, 19, 0.4)'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.label + ': ₹' + context.raw.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Update Sales Chart based on time period
+    function updateSalesChart(period) {
+        fetch(`/admin_side/sales-data/?period=${period}`)
+            .then(response => response.json())
+            .then(data => {
+                salesChart.data.labels = data.labels;
+                salesChart.data.datasets[0].data = data.data;
+                salesChart.update();
+            })
+            .catch(error => {
+                console.error('Error fetching sales data:', error);
+            });
+    }
+
+    // Apply filters
+    function applyFilters() {
+        const timeRange = document.getElementById('timeRangeFilter').value;
+        const category = document.getElementById('categoryFilter').value;
+        
+        window.location.href = `/admin_side/admin_home/?time_range=${timeRange}&category=${category}`;
+    }
+
+    // Apply custom date range
+    function applyDateRange() {
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+        
+        if (!startDate || !endDate) {
+            alert('Please select both start and end dates');
+            return;
+        }
+        
+        window.location.href = `/admin_side/admin_home/?start_date=${startDate}&end_date=${endDate}`;
+    }
+
+    // Export sales data
+    function exportSalesData() {
+        const timeRange = document.getElementById('timeRangeFilter').value;
+        const category = document.getElementById('categoryFilter').value;
+        
+        window.location.href = `/admin_side/export-sales/?time_range=${timeRange}&category=${category}`;
+    }
+
+    // Initialize date inputs with current date range if available
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const startDate = urlParams.get('start_date');
+        const endDate = urlParams.get('end_date');
+        
+        if (startDate) {
+            document.getElementById('startDate').value = startDate;
+        }
+        
+        if (endDate) {
+            document.getElementById('endDate').value = endDate;
+        }
+    });
+</script>
+{% endblock %} 

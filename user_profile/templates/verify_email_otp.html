@@ -1,0 +1,159 @@
+{% extends 'userProfile_demo.html' %}
+{% load static %}
+
+{% block profile_content %}
+<style>
+    .verification-form {
+        background: white;
+        padding: 35px;
+        border-radius: 8px;
+        box-shadow: 0 0 15px rgba(0,0,0,0.05);
+    }
+    
+    .form-group {
+        margin-bottom: 25px;
+    }
+    
+    .form-label {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 500;
+        color: #333;
+        margin-bottom: 10px;
+    }
+    
+    .form-control {
+        font-family: 'Poppins', sans-serif;
+        border: 1px solid #e0e0e0;
+        padding: 12px 18px;
+        border-radius: 6px;
+        font-size: 16px;
+        letter-spacing: 1px;
+    }
+    
+    .form-control:focus {
+        border-color: #8B4513;
+        box-shadow: 0 0 0 0.25rem rgba(139, 69, 19, 0.25);
+    }
+    
+    .btn-custom {
+        background-color: #8B4513;
+        color: white;
+        padding: 14px 30px;
+        border: none;
+        border-radius: 25px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-family: 'Poppins', sans-serif;
+    }
+    
+    .btn-custom:hover {
+        background-color: #6b3410;
+        transform: translateY(-2px);
+        color: white;
+    }
+    
+    .btn-custom-outline {
+        background-color: transparent;
+        color: #8B4513;
+        padding: 14px 30px;
+        border: 1px solid #8B4513;
+        border-radius: 25px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-family: 'Poppins', sans-serif;
+    }
+    
+    .btn-custom-outline:hover {
+        background-color: #8B4513;
+        color: white;
+        transform: translateY(-2px);
+    }
+    
+    .page-title {
+        font-family: 'Poppins', sans-serif;
+        font-size: 28px;
+        font-weight: 600;
+        margin-bottom: 30px;
+        color: #333;
+        text-align: center;
+    }
+    
+    .alert-info {
+        background-color: #e8f4f8;
+        border-color: #d6eaf8;
+        color: #0c5460;
+        border-radius: 6px;
+        padding: 15px;
+    }
+    
+    .alert-info p {
+        font-family: 'Poppins', sans-serif;
+        margin-bottom: 0;
+        font-size: 15px;
+    }
+    
+    .alert-info strong {
+        font-weight: 600;
+        display: block;
+        margin-top: 5px;
+        font-size: 16px;
+    }
+    
+    .form-text {
+        font-family: 'Poppins', sans-serif;
+        font-size: 13px;
+        color: #6c757d;
+        margin-top: 8px;
+    }
+</style>
+
+<div class="container py-5">
+    <div class="row">
+        <div class="col-md-6 mx-auto">
+            <div class="verification-form">
+                <h2 class="page-title">Verify Your Email</h2>
+                
+                <div class="alert alert-info mb-4">
+                    <p class="mb-0">
+                        We've sent a verification code to your email address:<br>
+                        <strong>{{ new_email }}</strong>
+                    </p>
+                </div>
+                
+                <form method="POST" action="{% url 'user_profile:verify_email_otp' %}">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label for="otp" class="form-label">Enter Verification Code</label>
+                        <input type="text" class="form-control" id="otp" name="otp" 
+                               maxlength="6" required pattern="[0-9]{6}"
+                               placeholder="Enter 6-digit code">
+                        <div class="form-text">Please enter the 6-digit code sent to your email. The code will expire in 10 minutes.</div>
+                    </div>
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn-custom">Verify Email</button>
+                        <a href="{% url 'user_profile:profile' %}" class="btn-custom-outline mt-3">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if messages %}
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    {% for message in messages %}
+        <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header {% if message.tags %}bg-{{ message.tags }}{% endif %}">
+                <strong class="me-auto">Notification</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                {{ message }}
+            </div>
+        </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

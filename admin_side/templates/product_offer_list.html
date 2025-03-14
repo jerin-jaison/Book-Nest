@@ -1,0 +1,174 @@
+{% extends 'admin_sidebar.html' %}
+
+{% block content %}
+<style>
+    :root {
+        --primary-color: #8B4513;
+        --primary-hover: #6b3410;
+        --light-brown: #f5e6d3;
+        --bg-light: #fafafa;
+    }
+
+    .stats-card {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+
+    .stats-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .table th {
+        background-color: var(--light-brown);
+        color: var(--primary-color);
+        font-weight: 600;
+        padding: 1rem;
+    }
+
+    .table td {
+        vertical-align: middle;
+        padding: 1rem;
+    }
+
+    .btn-custom {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 8px 20px;
+        border: none;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-custom:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-2px);
+        color: white;
+    }
+
+    .btn-outline {
+        background-color: transparent;
+        color: var(--primary-color);
+        border: 2px solid var(--primary-color);
+        padding: 8px 20px;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-outline:hover {
+        background-color: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .badge-active {
+        background-color: #d4edda;
+        color: #155724;
+        padding: 0.5em 1em;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+
+    .badge-inactive {
+        background-color: #f8d7da;
+        color: #721c24;
+        padding: 0.5em 1em;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+
+    .badge-expired {
+        background-color: #e2e3e5;
+        color: #383d41;
+        padding: 0.5em 1em;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Header Section -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0" style="color: var(--primary-color);">
+            <i class="bi bi-grid me-2"></i>Product Offers
+        </h2>
+        <div>
+            <a href="{% url 'admin_side:offer_management' %}" class="btn-outline me-2">
+                <i class="bi bi-arrow-left me-1"></i>Back to Offers
+            </a>
+            <a href="{% url 'admin_side:add_product_offer' %}" class="btn-custom">
+                <i class="bi bi-plus-lg me-1"></i>Add New Offer
+            </a>
+        </div>
+    </div>
+
+    <!-- Offers Table -->
+    <div class="card stats-card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Product</th>
+                            <th>Discount</th>
+                            <th>Period</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if offers %}
+                            {% for offer in offers %}
+                            <tr>
+                                <td>
+                                    <div class="fw-medium">{{ offer.title }}</div>
+                                    <small class="text-muted">{{ offer.description|truncatechars:50 }}</small>
+                                </td>
+                                <td>{{ offer.product.title }}</td>
+                                <td>{{ offer.discount_percentage }}%</td>
+                                <td>
+                                    <div>{{ offer.start_date|date:"d M, Y" }}</div>
+                                    <small class="text-muted">to {{ offer.end_date|date:"d M, Y" }}</small>
+                                </td>
+                                <td>
+                                    {% if offer.is_active %}
+                                        {% if offer.end_date < now %}
+                                            <span class="badge badge-expired">Expired</span>
+                                        {% else %}
+                                            <span class="badge badge-active">Active</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge badge-inactive">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'admin_side:edit_product_offer' offer.id %}" class="btn btn-sm btn-outline-primary me-1">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a href="{% url 'admin_side:delete_product_offer' offer.id %}" class="btn btn-sm btn-outline-danger" 
+                                       onclick="return confirm('Are you sure you want to delete this offer?')">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4">
+                                    <div class="alert alert-info mb-0">
+                                        No product offers found. <a href="{% url 'admin_side:add_product_offer' %}">Create your first offer</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

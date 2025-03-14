@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookNest</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    {% block extra_css %}{% endblock %}
+    <style>
+        :root {
+            --primary-color: #0d6efd;
+            --secondary-color: #6c757d;
+            --brown-color: #8B4513;
+            --brown-hover: #6B3410;
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+            
+            /* Font Sizes */
+            --text-xs: 0.75rem;    /* 12px */
+            --text-sm: 0.875rem;   /* 14px */
+            --text-base: 0.9375rem; /* 15px */
+            --text-lg: 1.125rem;   /* 18px */
+            --text-xl: 1.25rem;    /* 20px */
+        }
+
+        body {
+            background-color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.5;
+            font-size: var(--text-base);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Navbar Styles */
+        .navbar {
+            border-bottom: 1px solid #eee;
+            padding: var(--spacing-xs) 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: var(--spacing-xs) var(--spacing-sm);
+        }
+
+        .logo-icon {
+            color: var(--primary-color);
+            font-size: var(--text-xl);
+            margin-right: var(--spacing-xs);
+        }
+
+        .brand-text {
+            font-weight: 700;
+            color: #333;
+            font-size: var(--text-xl);
+            margin: 0;
+        }
+
+        /* Navigation Links */
+        .nav-link {
+            color: #555 !important;
+            font-size: var(--text-sm);
+            padding: var(--spacing-xs) var(--spacing-sm) !important;
+            font-weight: 500;
+            transition: color 0.2s ease;
+            margin: 0 var(--spacing-xs);
+        }
+
+        .nav-link:hover {
+            color: var(--brown-color) !important;
+        }
+
+        .nav-link.active {
+            color: var(--brown-color) !important;
+            font-weight: 600;
+        }
+
+        /* Search Form */
+        .search-form {
+            max-width: 400px;
+            margin: 0 var(--spacing-md);
+        }
+
+        .search-form .form-control {
+            border-radius: 50px;
+            border: 1px solid #ddd;
+            padding: var(--spacing-xs) var(--spacing-sm);
+            font-size: var(--text-sm);
+            box-shadow: none;
+            background-color: #f8f9fa;
+        }
+
+        .search-form .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.1);
+        }
+
+        /* Cart Icon */
+        .cart-icon {
+            font-size: var(--text-lg);
+            color: #555;
+            position: relative;
+            transition: color 0.2s ease;
+            margin-right: var(--spacing-md);
+        }
+
+        .cart-badge {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background-color: #dc3545;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: var(--text-xs);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        /* User Menu */
+        .user-dropdown {
+            padding: var(--spacing-xs) var(--spacing-sm);
+        }
+
+        .user-dropdown .dropdown-menu {
+            padding: var(--spacing-xs);
+            margin-top: var(--spacing-xs);
+        }
+
+        .user-dropdown .dropdown-item {
+            font-size: var(--text-sm);
+            padding: var(--spacing-xs) var(--spacing-sm);
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            padding: var(--spacing-lg) 0;
+        }
+
+        /* Footer */
+        footer {
+            background-color: #f8f9fa;
+            padding: var(--spacing-xl) 0;
+            margin-top: auto;
+            border-top: 1px solid #eee;
+        }
+
+        .footer-heading {
+            font-size: var(--text-base);
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+            color: #333;
+        }
+
+        .footer-tagline {
+            color: #666;
+            font-size: var(--text-sm);
+            margin: var(--spacing-xs) 0 var(--spacing-sm);
+        }
+
+        .footer-link {
+            color: #666;
+            text-decoration: none;
+            font-size: var(--text-sm);
+            display: block;
+            margin-bottom: var(--spacing-xs);
+            transition: color 0.2s ease;
+        }
+
+        .footer-link:hover {
+            color: #333;
+        }
+
+        .social-icons {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-sm);
+        }
+
+        .social-icon {
+            color: #666;
+            font-size: var(--text-base);
+            transition: color 0.2s ease;
+        }
+
+        .social-icon:hover {
+            color: var(--primary-color);
+        }
+
+        /* Filter Offcanvas */
+        .filter-offcanvas {
+            max-width: 350px;
+        }
+
+        .filter-offcanvas .offcanvas-header {
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .filter-offcanvas .offcanvas-body {
+            padding: var(--spacing-md);
+        }
+
+        .filter-offcanvas .offcanvas-title {
+            font-size: var(--text-lg);
+        }
+
+        .filter-form-group {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .filter-form-group label {
+            font-size: var(--text-sm);
+            margin-bottom: var(--spacing-xs);
+            font-weight: 500;
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: var(--spacing-md);
+            right: var(--spacing-md);
+            z-index: 1000;
+        }
+
+        .toast {
+            font-size: var(--text-sm);
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            margin-bottom: var(--spacing-sm);
+            padding: var(--spacing-sm) var(--spacing-md);
+            min-width: 300px;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            body {
+                font-size: var(--text-sm);
+            }
+
+            .brand-text {
+                font-size: var(--text-lg);
+            }
+
+            .nav-link {
+                font-size: var(--text-xs);
+            }
+
+            .footer-heading {
+                font-size: var(--text-base);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white">
+        <div class="container">
+            <!-- Logo -->
+            <a class="navbar-brand d-flex align-items-center" href="/">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="#0d6efd" class="bi bi-book" viewBox="0 0 16 16">
+                    <path d="M1 2.828c.885-.37 2.154-.769 3.388-.893 1.33-.134 2.458.063 3.112.752v9.746c-.935-.53-2.12-.603-3.213-.493-1.18.12-2.37.461-3.287.811V2.828zm7.5-.141c.654-.689 1.782-.886 3.112-.752 1.234.124 2.503.523 3.388.893v9.923c-.918-.35-2.107-.692-3.287-.81-1.094-.111-2.278-.039-3.213.492V2.687zM8 1.783C7.015.936 5.587.81 4.287.94c-1.514.153-3.042.672-3.994 1.105A.5.5 0 0 0 0 2.5v11a.5.5 0 0 0 .707.455c.882-.4 2.303-.881 3.68-1.02 1.409-.142 2.59.087 3.223.877a.5.5 0 0 0 .78 0c.633-.79 1.814-1.019 3.222-.877 1.378.139 2.8.62 3.681 1.02A.5.5 0 0 0 16 13.5v-11a.5.5 0 0 0-.293-.455c-.952-.433-2.48-.952-3.994-1.105C10.413.809 8.985.936 8 1.783z"/>
+                </svg>
+                <span class="brand-text ms-2">BookNest</span>
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <!-- Main Navigation -->
+                <ul class="navbar-nav mx-auto">
+                    <li class="nav-item mx-1">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'product_page' %}active{% endif %}" href="{% url 'product_page' %}">
+                            Top Selling
+                        </a>
+                    </li>
+                    <li class="nav-item mx-1">
+                        <a class="nav-link" href="#">Upcoming Arrivals</a>
+                    </li>
+                    <li class="nav-item mx-1">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'wishlist' %}active{% endif %}" href="{% url 'user_profile:wishlist' %}">
+                            Wishlist
+                        </a>
+                    </li>
+                    <li class="nav-item mx-1">
+                        <a class="nav-link" href="#">Contact</a>
+                    </li>
+                    <li class="nav-item mx-1">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'wallet_dashboard' %}active{% endif %}" href="{% url 'user_wallet:wallet_dashboard' %}">
+                            <i class="fas fa-wallet me-1"></i> Wallet
+                        </a>
+                    </li>
+                    {% comment %} <li class="nav-item mx-1">
+                        <button class="nav-link" type="button" data-bs-toggle="offcanvas" data-bs-target="#filterOffcanvas">
+                            <i class="fas fa-filter me-1"></i> Filters
+                        </button>
+                    </li> {% endcomment %}
+                </ul>
+                
+                <!-- Right Side Controls -->
+                <div class="d-flex align-items-center">
+                    <!-- Search Box -->
+                    <form class="search-form me-3" method="GET" action="{% url 'product_page' %}">
+                        <div class="input-group">
+                            <input class="form-control" type="search" name="search" placeholder="Search for books...">
+                            <button class="btn" type="submit">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </form>
+
+                    {% if user.is_authenticated %}
+                    <!-- Cart -->
+                    <div class="position-relative me-3">
+                        <a href="{% url 'cart_section:view_cart' %}" class="text-decoration-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-cart" viewBox="0 0 16 16">
+                                <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5zM3.102 4l1.313 7h8.17l1.313-7H3.102zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
+                            </svg>
+                            {% with cart_count=request.user.cart_set.count %}
+                            {% if cart_count > 0 %}
+                            <span class="cart-badge">{{ cart_count }}</span>
+                            {% endif %}
+                            {% endwith %}
+                        </a>
+                    </div>
+                    
+                    <!-- User Menu -->
+                    <div class="dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                            {% if request.user.account_details.profile_image and request.user.account_details.profile_image.url %}
+                                <img src="{{ request.user.account_details.profile_image.url }}" alt="Profile" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;">
+                            {% else %}
+                                <div class="rounded-circle bg-dark d-flex justify-content-center align-items-center" style="width: 32px; height: 32px;">
+                                    <span class="text-white" style="font-size: 14px;">{{ request.user.username.0|upper }}</span>
+                                </div>
+                            {% endif %}
+                            <span class="d-none d-md-inline" style="font-family: 'Poppins', sans-serif;">Welcome, {{ request.user.username }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li><a class="dropdown-item" href="{% url 'user_profile:profile' %}">My Profile</a></li>
+                            <li><a class="dropdown-item" href="{% url 'user_profile:orders_list' %}">My Orders</a></li>
+                            <li><a class="dropdown-item" href="{% url 'user_wallet:wallet_dashboard' %}">My Wallet</a></li>
+                            <li><a class="dropdown-item" href="{% url 'user_profile:my_coupons' %}">Coupons & Referrals</a></li>
+                            <li><a class="dropdown-item" href="#" data-bs-toggle="offcanvas" data-bs-target="#filterOffcanvas">Filter</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form action="{% url 'signout' %}" method="post" class="px-2">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-danger w-100">Logout</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                    {% else %}
+                    <a href="{% url 'login_page' %}" class="btn btn-outline-primary">Login</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    {% block content %}
+    {% endblock %}
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="row">
+                <div class="col-md-3 mb-4">
+                    <h5 class="footer-heading">BookNest</h5>
+                    <p class="footer-tagline">Where stories find home</p>
+                    <div class="social-icons mt-3">
+                        <a href="#" class="social-icon"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="social-icon"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="social-icon"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="social-icon"><i class="fab fa-github"></i></a>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <h5 class="footer-heading">Company</h5>
+                    <a href="#" class="footer-link">About</a>
+                    <a href="#" class="footer-link">Features</a>
+                    <a href="#" class="footer-link">Works</a>
+                    <a href="#" class="footer-link">Career</a>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <h5 class="footer-heading">Help</h5>
+                    <a href="#" class="footer-link">Support</a>
+                    <a href="#" class="footer-link">Delivery</a>
+                    <a href="#" class="footer-link">Terms</a>
+                    <a href="#" class="footer-link">Privacy</a>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <h5 class="footer-heading">Resources</h5>
+                    <a href="#" class="footer-link">Free eBooks</a>
+                    <a href="#" class="footer-link">Tutorials</a>
+                    <a href="#" class="footer-link">Blog</a>
+                    <a href="#" class="footer-link">YouTube</a>
+                </div>
+            </div>
+            <div class="row mt-4 pt-4 border-top">
+                <div class="col-md-6 text-center text-md-start">
+                    <p class="mb-0">&copy; 2000-2025 BookNest. All rights reserved</p>
+                </div>
+                <div class="col-md-6 text-center text-md-end">
+                    <img src="https://img.icons8.com/ios/50/000000/visa.png" alt="visa" class="ms-2" style="height: 20px;">
+                    <img src="https://img.icons8.com/color/48/000000/mastercard.png" alt="mastercard" class="ms-2" style="height: 20px;">
+                    <img src="https://img.icons8.com/color/48/000000/paypal.png" alt="paypal" class="ms-2" style="height: 20px;">
+                    <img src="https://img.icons8.com/ios-filled/50/000000/apple-pay.png" alt="apple pay" class="ms-2" style="height: 20px;">
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Filter Offcanvas -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="filterOffcanvas" aria-labelledby="filterOffcanvasLabel" style="max-width: 350px;">
+        <div class="offcanvas-header border-bottom">
+            <h5 class="offcanvas-title" id="filterOffcanvasLabel" style="font-family: 'Playfair Display', serif; color: #8B4513;">
+                <i class="fas fa-filter me-2"></i>Filter Books
+            </h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <form method="GET" action="{% url 'product_page' %}" id="filterForm">
+                <!-- Search -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium" style="font-family: 'Poppins', sans-serif;">Search</label>
+                    <input type="text" class="form-control" name="search" value="{{ search_query }}" 
+                           placeholder="Search by title, author, or ISBN..." style="font-family: 'Poppins', sans-serif;">
+                </div>
+
+                <!-- Categories -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium" style="font-family: 'Poppins', sans-serif;">Category</label>
+                    <select class="form-select" name="category" style="font-family: 'Poppins', sans-serif;">
+                        <option value="">All Categories</option>
+                        <option value="self-help" {% if selected_category == 'self-help' %}selected{% endif %}>Self-Help</option>
+                        <option value="comics" {% if selected_category == 'comics' %}selected{% endif %}>Comics</option>
+                        <option value="sci-fi" {% if selected_category == 'sci-fi' %}selected{% endif %}>Science Fiction</option>
+                        <option value="fiction" {% if selected_category == 'fiction' %}selected{% endif %}>Fiction</option>
+                        <option value="non-fiction" {% if selected_category == 'non-fiction' %}selected{% endif %}>Non-Fiction</option>
+                        <option value="mystery" {% if selected_category == 'mystery' %}selected{% endif %}>Mystery & Thriller</option>
+                        <option value="romance" {% if selected_category == 'romance' %}selected{% endif %}>Romance</option>
+                        <option value="biography" {% if selected_category == 'biography' %}selected{% endif %}>Biography</option>
+                        {% for category in categories %}
+                            {% if category.id|stringformat:"s" != 'self-help' and category.id|stringformat:"s" != 'comics' and category.id|stringformat:"s" != 'sci-fi' and category.id|stringformat:"s" != 'fiction' and category.id|stringformat:"s" != 'non-fiction' and category.id|stringformat:"s" != 'mystery' and category.id|stringformat:"s" != 'romance' and category.id|stringformat:"s" != 'biography' %}
+                            <option value="{{ category.id }}" {% if category.id|stringformat:"s" == selected_category %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Language -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium" style="font-family: 'Poppins', sans-serif;">Language</label>
+                    <select class="form-select" name="language" style="font-family: 'Poppins', sans-serif;">
+                        <option value="">All Languages</option>
+                        
+                        <!-- Most Common -->
+                        <optgroup label="Most Common">
+                            <option value="english" {% if selected_language == 'english' %}selected{% endif %}>English</option>
+                            
+                        </optgroup>
+                        
+                        <!-- Indian Languages -->
+                        <optgroup label="Indian Languages">
+                            <option value="tamil" {% if selected_language == 'tamil' %}selected{% endif %}>Tamil</option>
+                            <option value="telugu" {% if selected_language == 'telugu' %}selected{% endif %}>Telugu</option>
+                            <option value="malayalam" {% if selected_language == 'malayalam' %}selected{% endif %}>Malayalam</option>
+                            <option value="hindi" {% if selected_language == 'hindi' %}selected{% endif %}>Hindi</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <!-- Price Range -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium" style="font-family: 'Poppins', sans-serif;">Price Range</label>
+                    <div class="row g-2">
+                        <div class="col">
+                            <input type="number" class="form-control" name="min_price" value="{{ min_price }}" 
+                                   placeholder="Min" min="0" style="font-family: 'Poppins', sans-serif;">
+                        </div>
+                        <div class="col">
+                            <input type="number" class="form-control" name="max_price" value="{{ max_price }}" 
+                                   placeholder="Max" min="0" style="font-family: 'Poppins', sans-serif;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sort By -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium" style="font-family: 'Poppins', sans-serif;">Sort By</label>
+                    <select class="form-select" name="sort_by" style="font-family: 'Poppins', sans-serif;">
+                        <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Title (A-Z)</option>
+                        <option value="price_low" {% if sort_by == 'price_low' %}selected{% endif %}>Price: Low to High</option>
+                        <option value="price_high" {% if sort_by == 'price_high' %}selected{% endif %}>Price: High to Low</option>
+                        <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest First</option>
+                    </select>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary" style="font-family: 'Poppins', sans-serif;">
+                        Apply Filters
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="resetFilters()" 
+                            style="font-family: 'Poppins', sans-serif;">
+                        Reset Filters
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

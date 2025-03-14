@@ -1,0 +1,41 @@
+{% extends 'userProfile_demo.html' %}
+{% load static %}
+
+{% block profile_content %}
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-white font-roboto">
+    <div class="container mx-auto p-4">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold">Order Cancellation</h1>
+        </div>
+        <div class="flex flex-col md:flex-row justify-center items-start md:items-center">
+            <div class="w-full md:w-1/2 p-4">
+                <h2 class="text-xl font-bold mb-4">Why do you want to cancel?</h2>
+                <form method="POST" action="{% url 'user_profile:cancel_order' order.order_id %}">
+                    {% csrf_token %}
+                    <label for="reason" class="block text-gray-700 mb-2">Reason for cancellation</label>
+                    <textarea id="reason" name="cancel_reason" class="w-full h-32 p-2 border border-gray-300 rounded mb-4" required></textarea>
+                    <div class="flex justify-between">
+                        <a href="{% url 'user_profile:order_detail' order.order_id %}" class="bg-gray-500 text-white py-2 px-4 rounded-full hover:bg-gray-600">Back</a>
+                        <button type="submit" class="bg-red-500 text-white py-2 px-4 rounded-full hover:bg-red-600">Confirm Cancellation</button>
+                    </div>
+                </form>
+            </div>
+            <div class="w-full md:w-1/2 p-4 bg-gray-100 rounded-lg mt-8 md:mt-0 md:ml-8">
+                <h2 class="text-xl font-bold mb-4">Contact us</h2>
+                <p class="mb-4"><strong>Your Voice, Our Priority:</strong><br>Address -420, Square one commercial, Mattanchery, Kochi, Kerala 395017.</p>
+                <p class="mb-2"><strong>Contact us</strong><br>Kochi, Kerala, India</p>
+                <p class="mb-2"><strong>Phone</strong><br>9496226961</p>
+                <p class="mb-2"><strong>Email</strong><br>booknestt@gmail.com</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+{% endblock %} 

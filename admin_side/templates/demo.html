@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookNest - Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #8B4513;
+            --primary-hover: #6b3410;
+            --light-brown: #f5e6d3;
+        }
+
+        .demo-section {
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid #dee2e6;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .demo-section:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-list {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        .feature-list li {
+            margin-bottom: 1rem;
+            padding-left: 1.8rem;
+            position: relative;
+        }
+
+        .feature-list li:before {
+            content: "✓";
+            color: var(--primary-color);
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+
+        .btn-custom {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 25px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-custom:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
+            color: white;
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            color: var(--primary-color);
+            padding: 8px 20px;
+            border: 2px solid var(--primary-color);
+            border-radius: 25px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-outline:hover {
+            background-color: var(--primary-color);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .section-title {
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .card {
+            border: none;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .text-primary {
+            color: var(--primary-color) !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="section-title mb-4">BookNest Admin Dashboard</h1>
+
+        <!-- Navigation Links -->
+        <div class="nav-links">
+            <a href="{% url 'admin_side:product_list' %}" class="btn-custom">
+                <i class="bi bi-box me-2"></i>Products
+            </a>
+            <a href="{% url 'admin_side:order_management' %}" class="btn-custom">
+                <i class="bi bi-cart me-2"></i>Orders
+            </a>
+            <a href="{% url 'admin_side:customer_management' %}" class="btn-custom">
+                <i class="bi bi-people me-2"></i>Customers
+            </a>
+            <a href="{% url 'admin_side:category_management' %}" class="btn-custom">
+                <i class="bi bi-folder me-2"></i>Categories
+            </a>
+            
+        </div>
+        
+        <div class="demo-section">
+            <h2 class="section-title">Product Management</h2>
+            <ul class="feature-list">
+                <li>Edit button added to product view page</li>
+                <li>New dedicated edit page for products</li>
+                <li>Ability to update all product details</li>
+                <li>Multiple image upload support</li>
+                <li>Category management integration</li>
+                <li>Real-time form validation</li>
+            </ul>
+            <div class="mt-4">
+                <a href="{% url 'admin_side:product_list' %}" class="btn-outline">
+                    <i class="bi bi-box me-2"></i>Manage Products
+                </a>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2 class="section-title">Order Management</h2>
+            <ul class="feature-list">
+                <li>View and manage all orders in one place</li>
+                <li>Update order status (Pending, Shipped, Delivered, etc.)</li>
+                <li>Process return requests and refunds</li>
+                <li>Track inventory and stock levels</li>
+                <li>Advanced search and filtering options</li>
+                <li>Export order data for reporting</li>
+            </ul>
+            <div class="mt-4 d-flex gap-3">
+                <a href="{% url 'admin_side:order_management' %}" class="btn-custom">
+                    <i class="bi bi-cart me-2"></i>Manage Orders
+                </a>
+                <a href="{% url 'admin_side:export_orders' %}" class="btn-outline">
+                    <i class="bi bi-download me-2"></i>Export Orders
+                </a>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2 class="section-title">Inventory Management</h2>
+            <ul class="feature-list">
+                <li>Real-time stock tracking and updates</li>
+                <li>Low stock alerts and notifications</li>
+                <li>Bulk stock updates</li>
+                <li>Stock history and tracking</li>
+                <li>Automated inventory reports</li>
+            </ul>
+            <div class="mt-4 d-flex gap-3">
+                <a href="{% url 'admin_side:inventory_management' %}" class="btn-custom">
+                    <i class="bi bi-box-seam me-2"></i>Manage Inventory
+                </a>
+                <a href="{% url 'admin_side:low_stock_alerts' %}" class="btn-outline">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Low Stock Alerts
+                </a>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2 class="section-title">Quick Actions</h2>
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title text-primary mb-3">Product Management</h5>
+                            <p class="card-text">Update product details, manage inventory, and organize categories.</p>
+                            <a href="{% url 'admin_side:product_list' %}" class="btn-outline">Manage Products</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title text-primary mb-3">Order Processing</h5>
+                            <p class="card-text">View orders, update status, and handle customer returns.</p>
+                            <a href="{% url 'admin_side:order_management' %}" class="btn-outline">Process Orders</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title text-primary mb-3">Inventory Control</h5>
+                            <p class="card-text">Monitor stock levels, set alerts, and manage inventory.</p>
+                            <a href="#" class="btn-outline">Check Inventory</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,225 @@
+{% extends 'userProfile_demo.html' %}
+{% load static %}
+
+{% block profile_content %}
+<style>
+    .transaction-history-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .page-title {
+        margin-bottom: 30px;
+        color: var(--primary-color);
+    }
+
+    .filters {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+
+    .filter-group {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .filter-label {
+        min-width: 100px;
+        color: #666;
+    }
+
+    .filter-select {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        min-width: 200px;
+    }
+
+    .transactions-table {
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table th {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+        color: #495057;
+    }
+
+    .table td {
+        vertical-align: middle;
+    }
+
+    .status-badge {
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .status-completed {
+        background-color: #d1e7dd;
+        color: #0f5132;
+    }
+
+    .status-pending {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .status-failed {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    .amount-credit {
+        color: #28a745;
+        font-weight: 500;
+    }
+
+    .amount-debit {
+        color: #dc3545;
+        font-weight: 500;
+    }
+
+    .reference-link {
+        color: var(--primary-color);
+        text-decoration: none;
+    }
+
+    .reference-link:hover {
+        text-decoration: underline;
+    }
+
+    .pagination-container {
+        margin-top: 20px;
+        display: flex;
+        justify-content: center;
+    }
+
+    .page-link {
+        color: var(--primary-color);
+    }
+
+    .page-item.active .page-link {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+</style>
+
+<div class="transaction-history-container">
+    <h2 class="page-title">Transaction History</h2>
+
+    <div class="filters">
+        <div class="filter-group">
+            <span class="filter-label">Type:</span>
+            <select class="filter-select">
+                <option value="all">All Transactions</option>
+                <option value="credit">Credits Only</option>
+                <option value="debit">Debits Only</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">Status:</span>
+            <select class="filter-select">
+                <option value="all">All Status</option>
+                <option value="completed">Completed</option>
+                <option value="pending">Pending</option>
+                <option value="failed">Failed</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="transactions-table">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Reference</th>
+                    <th>Amount</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for transaction in transactions %}
+                <tr>
+                    <td>{{ transaction.created_at|date:"F d, Y H:i" }}</td>
+                    <td>{{ transaction.description }}</td>
+                    <td>
+                        {% if transaction.reference_id %}
+                        <a href="#" class="reference-link">#{{ transaction.reference_id }}</a>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td class="{% if transaction.transaction_type == 'CREDIT' %}amount-credit{% else %}amount-debit{% endif %}">
+                        {% if transaction.transaction_type == 'CREDIT' %}+{% else %}-{% endif %}₹{{ transaction.amount }}
+                    </td>
+                    <td>{{ transaction.transaction_type }}</td>
+                    <td>
+                        <span class="status-badge status-{{ transaction.status|lower }}">
+                            {{ transaction.status }}
+                        </span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-4">No transactions found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if transactions.has_other_pages %}
+    <div class="pagination-container">
+        <ul class="pagination">
+            {% if transactions.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ transactions.previous_page_number }}">&laquo;</a>
+            </li>
+            {% endif %}
+
+            {% for i in transactions.paginator.page_range %}
+            <li class="page-item {% if transactions.number == i %}active{% endif %}">
+                <a class="page-link" href="?page={{ i }}">{{ i }}</a>
+            </li>
+            {% endfor %}
+
+            {% if transactions.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ transactions.next_page_number }}">&raquo;</a>
+            </li>
+            {% endif %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    // Add filter functionality
+    document.querySelectorAll('.filter-select').forEach(select => {
+        select.addEventListener('change', function() {
+            // You can implement filtering logic here
+            // For now, we'll just reload the page
+            window.location.href = window.location.pathname + '?type=' + 
+                document.querySelector('select[value="type"]').value +
+                '&status=' + document.querySelector('select[value="status"]').value;
+        });
+    });
+</script>
+{% endblock %} 

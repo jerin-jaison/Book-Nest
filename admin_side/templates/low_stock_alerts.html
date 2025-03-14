@@ -1,0 +1,256 @@
+{% extends 'demo.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .alerts-container {
+        padding: 2rem;
+    }
+
+    .alert-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+
+    .alert-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .alert-icon {
+        font-size: 1.5rem;
+        color: var(--primary-color);
+    }
+
+    .alert-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        margin: 0;
+    }
+
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .product-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1rem;
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .product-image {
+        width: 80px;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 5px;
+    }
+
+    .product-info {
+        flex: 1;
+    }
+
+    .product-title {
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+
+    .product-author {
+        color: #666;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .stock-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .stock-low {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .stock-out {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .btn-custom {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 8px 20px;
+        border: none;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-custom:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-2px);
+        color: white;
+    }
+
+    .btn-outline {
+        background-color: transparent;
+        color: var(--primary-color);
+        padding: 8px 20px;
+        border: 2px solid var(--primary-color);
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-outline:hover {
+        background-color: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .empty-message {
+        text-align: center;
+        padding: 2rem;
+        color: #666;
+    }
+</style>
+
+<div class="alerts-container">
+    <!-- Low Stock Products -->
+    <div class="alert-card">
+        <div class="alert-header">
+            <i class="bi bi-exclamation-triangle alert-icon"></i>
+            <h2 class="alert-title">Low Stock Products</h2>
+        </div>
+        
+        {% if low_stock_products %}
+        <div class="product-grid">
+            {% for product in low_stock_products %}
+            <div class="product-card">
+                <img src="{{ product.cover_image.url }}" alt="{{ product.title }}" class="product-image">
+                <div class="product-info">
+                    <h3 class="product-title">{{ product.title }}</h3>
+                    <p class="product-author">{{ product.author }}</p>
+                    <span class="stock-badge stock-low">{{ product.stock }} in stock</span>
+                    <div class="action-buttons">
+                        <button class="btn-custom" onclick="updateStock({{ product.id }})">
+                            Update Stock
+                        </button>
+                        <a href="{% url 'edit_product' product.id %}" class="btn-outline">
+                            Edit Product
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-message">
+            <p>No products with low stock.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Out of Stock Products -->
+    <div class="alert-card">
+        <div class="alert-header">
+            <i class="bi bi-x-circle alert-icon"></i>
+            <h2 class="alert-title">Out of Stock Products</h2>
+        </div>
+        
+        {% if out_of_stock_products %}
+        <div class="product-grid">
+            {% for product in out_of_stock_products %}
+            <div class="product-card">
+                <img src="{{ product.cover_image.url }}" alt="{{ product.title }}" class="product-image">
+                <div class="product-info">
+                    <h3 class="product-title">{{ product.title }}</h3>
+                    <p class="product-author">{{ product.author }}</p>
+                    <span class="stock-badge stock-out">Out of Stock</span>
+                    <div class="action-buttons">
+                        <button class="btn-custom" onclick="updateStock({{ product.id }})">
+                            Update Stock
+                        </button>
+                        <a href="{% url 'edit_product' product.id %}" class="btn-outline">
+                            Edit Product
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-message">
+            <p>No out of stock products.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    function updateStock(productId) {
+        const newStock = prompt('Enter new stock quantity:');
+        if (newStock === null || newStock === '') return;
+        
+        if (isNaN(newStock) || parseInt(newStock) < 0) {
+            alert('Please enter a valid number.');
+            return;
+        }
+        
+        fetch(`/admin/products/${productId}/update-stock/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: `stock=${newStock}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        });
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %} 

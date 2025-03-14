@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookNest - Where stories find home</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        .promo-banner {
+            background-color: #8B4513;
+            font-size: 0.9rem;
+        }
+        
+        .logo {
+            color: #8B4513;
+            font-size: 1.8rem;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .logo:hover {
+            color: #8B4513;
+        }
+
+        .hero {
+            background-color: white;
+        }
+
+        .book-card {
+            transition: transform 0.3s ease;
+            height: 100%;
+            background: white;
+            border-radius: 10px;
+        }
+
+        .book-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .book-image {
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .category-card {
+            background: white;
+            border-radius: 10px;
+            height: 100%;
+        }
+
+        .section-divider {
+            border-top: 2px solid #eee;
+            margin: 3rem 0;
+        }
+
+        .footer {
+            background-color: #f8f9fa;
+            padding: 4rem 0;
+        }
+        
+        .footer-logo {
+            color: #8B4513;
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+
+        .footer-link {
+            color: #6c757d;
+            text-decoration: none;
+        }
+
+        .footer-link:hover {
+            color: #8B4513;
+        }
+
+        .payment-icons img {
+            height: 30px;
+            margin: 0 5px;
+        }
+
+        /* Cart Badge Styles */
+        .cart-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background-color: #dc3545;
+            color: white;
+            border-radius: 50%;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            min-width: 1rem;
+            text-align: center;
+        }
+
+        .cart-icon {
+            font-size: 1.3rem;
+            color: var(--primary-color);
+        }
+
+        /* Filter Styles */
+        .filter-offcanvas {
+            width: 300px;
+        }
+        
+        .filter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .price-range-slider {
+            width: 100%;
+        }
+        
+        .price-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.5rem;
+        }
+        
+        .category-filter-btn {
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            border-radius: 20px;
+            padding: 0.375rem 1rem;
+        }
+        
+        .active-filter {
+            background-color: #212529;
+            color: white;
+        }
+        
+        .inactive-filter {
+            background-color: #e9ecef;
+            color: #212529;
+        }
+        
+        .save-filter-btn {
+            background-color: #212529;
+            color: white;
+            border-radius: 20px;
+            padding: 0.375rem 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem !important;
+            }
+            
+            .hero p {
+                font-size: 1rem !important;
+            }
+
+            .book-image {
+                height: 150px;
+            }
+
+            .category-card {
+                margin-bottom: 1rem;
+            }
+
+            .footer-column {
+                margin-bottom: 2rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .search-form {
+                width: 100%;
+                margin-top: 1rem;
+            }
+        }
+        
+        .offcanvas {
+            border-right: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .form-label {
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-control, .form-select {
+            border: 1px solid #dee2e6;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #8B4513;
+            box-shadow: 0 0 0 0.25rem rgba(139, 69, 19, 0.25);
+        }
+        
+        .btn-primary {
+            background-color: #8B4513;
+            border-color: #8B4513;
+        }
+        
+        .btn-primary:hover {
+            background-color: #6b3410;
+            border-color: #6b3410;
+        }
+        
+        .btn-outline-secondary {
+            color: #6c757d;
+            border-color: #6c757d;
+        }
+        
+        .btn-outline-secondary:hover {
+            color: #fff;
+            background-color: #6c757d;
+            border-color: #6c757d;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    {% if not user.is_authenticated %}
+    <!-- Promo Banner for Non-Logged In Users -->
+    <div class="promo-banner text-white text-center py-2">
+        <div class="container">
+            <div class="row">
+                <div class="col-12">
+                    Sign up and get 20% off to your first order. <a href="{% url 'signup_page' %}" class="text-white text-decoration-underline">Sign Up Now</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Message for Logged In Users -->
+    <div class="welcome-banner text-white text-center py-2">
+        <div class="container">
+            <div class="row">
+                <div class="col-12">
+                    Welcome back, {{ user.username }}! Check out our <a href="#" class="text-white text-decoration-underline">exclusive member offers</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm py-3">
+        <nav class="navbar navbar-expand-lg container-fluid container-lg">
+            <div class="container-fluid px-lg-0">
+                <!-- Logo with Book Icon -->
+                <a href="#" class="logo navbar-brand d-flex align-items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="bi bi-book me-2 text-primary" viewBox="0 0 16 16">
+                        <path d="M1 2.828c.885-.37 2.154-.769 3.388-.893 1.33-.134 2.458.063 3.112.752v9.746c-.935-.53-2.12-.603-3.213-.493-1.18.12-2.37.461-3.287.811V2.828zm7.5-.141c.654-.689 1.782-.886 3.112-.752 1.234.124 2.503.523 3.388.893v9.923c-.918-.35-2.107-.692-3.287-.81-1.094-.111-2.278-.039-3.213.492V2.687zM8 1.783C7.015.936 5.587.81 4.287.94c-1.514.153-3.042.672-3.994 1.105A.5.5 0 0 0 0 2.5v11a.5.5 0 0 0 .707.455c.882-.4 2.303-.881 3.68-1.02 1.409-.142 2.59.087 3.223.877a.5.5 0 0 0 .78 0c.633-.79 1.814-1.019 3.222-.877 1.378.139 2.8.62 3.681 1.02A.5.5 0 0 0 16 13.5v-11a.5.5 0 0 0-.293-.455c-.952-.433-2.48-.952-3.994-1.105C10.413.809 8.985.936 8 1.783z"/>
+                    </svg>
+                    <span style="font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1.8rem; background: linear-gradient(45deg, #574444, #3d3132, #382d25); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;">BookNest</span>
+                </a>
+                
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item"><a class="nav-link fw-medium" href="#" style="font-family: 'Poppins', sans-serif;">Top Selling</a></li>
+                        <li class="nav-item"><a class="nav-link fw-medium" href="#" style="font-family: 'Poppins', sans-serif;">Upcoming Arrivals</a></li>
+                        <li class="nav-item"><a class="nav-link fw-medium" href="{% url 'user_profile:wishlist' %}" style="font-family: 'Poppins', sans-serif;">Wishlist</a></li>
+                        <li class="nav-item"><a class="nav-link fw-medium" href="{% url 'user_wallet:wallet_dashboard' %}" style="font-family: 'Poppins', sans-serif;">
+                            <i class="fas fa-wallet"></i> Wallet
+                        </a></li>
+                        <li class="nav-item"><a class="nav-link fw-medium" href="#" style="font-family: 'Poppins', sans-serif;">Contact</a></li>
+                        <!-- Filter Button -->
+                        <!-- <li class="nav-item">
+                            <button class="nav-link fw-medium" type="button" data-bs-toggle="offcanvas" data-bs-target="#filterOffcanvas" aria-controls="filterOffcanvas" style="font-family: 'Poppins', sans-serif; border: none; background: none;">
+                                <i class="fas fa-filter me-1"></i> Filters
+                            </button>
+                        </li> -->
+                    </ul>
+                    
+                    <form class="d-flex search-form me-3" method="GET" action="{% url 'product_page' %}">
+                        <div class="input-group">
+                            <input class="form-control border-end-0 rounded-pill rounded-end" type="search" name="search" placeholder="Search for books..." style="font-family: 'Poppins', sans-serif;">
+                            <button class="btn btn-outline-primary border-start-0 rounded-pill rounded-start" type="submit">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
+                                    <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- User Welcome and Actions -->
+                    <div class="d-flex align-items-center">
+                        <!-- Shopping Cart -->
+                        {% if user.is_authenticated %}
+                        <li class="nav-item me-3">
+                            <a class="nav-link position-relative" href="{% url 'cart_section:view_cart' %}">
+                                <i class="fas fa-shopping-cart cart-icon"></i>
+                                {% with cart_count=request.user.cart_set.count %}
+                                {% if cart_count > 0 %}
+                                <span class="cart-badge">{{ cart_count }}</span>
+                                {% endif %}
+                                {% endwith %}
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        <!-- User Welcome -->
+                        <div class="dropdown me-3">
+                            <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                {% if request.user.account_details.profile_image %}
+                                    <img src="{{ request.user.account_details.profile_image.url }}" alt="Profile" class="rounded-circle me-2" style="width: 34px; height: 34px; object-fit: cover;">
+                                {% else %}
+                                    <div class="rounded-circle bg-primary d-flex justify-content-center align-items-center me-2" style="width: 34px; height: 34px;">
+                                        <span class="text-white fw-bold">{{ request.user.username.0|upper }}</span>
+                                    </div>
+                                {% endif %}
+                                <span class="d-none d-md-inline" style="font-family: 'Poppins', sans-serif;">Welcome, {{ request.user.username }}</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                                <li><a class="dropdown-item" href="{% url 'user_profile:profile' %}">My Profile</a></li>
+                                <li><a class="dropdown-item" href="{% url 'user_profile:orders_list' %}">My Orders</a></li>
+                                <li><a class="dropdown-item" href="{% url 'user_wallet:wallet_dashboard' %}">My Wallet</a></li>
+                                <li><a class="dropdown-item" href="#" data-bs-toggle="offcanvas" data-bs-target="#filterOffcanvas">Filter</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form action="{% url 'signout' %}" method="post" class="px-2">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-outline-danger w-100">Sign Out</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Filter Offcanvas -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="filterOffcanvas" aria-labelledby="filterOffcanvasLabel" style="max-width: 350px;">
+        <div class="offcanvas-header border-bottom">
+            <h5 class="offcanvas-title" id="filterOffcanvasLabel" style="font-family: 'Playfair Display', serif; color: #8B4513;">
+                <i class="fas fa-filter me-2"></i>Filter Books
+            </h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <form method="GET" action="{% url 'product_page' %}" id="filterForm">
+                <!-- Search -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium" style="font-family: 'Poppins', sans-serif;">Search</label>
+                    <input type="text" class="form-control" name="search" value="{{ search_query }}" 
+                           placeholder="Search by title, author, or ISBN..." style="font-family: 'Poppins', sans-serif;">
+                </div>
+
+                <!-- Categories -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium" style="font-family: 'Poppins', sans-serif;">Category</label>
+                    <select class="form-select" name="category" style="font-family: 'Poppins', sans-serif;">
+                        <option value="">All Categories</option>
+                        <option value="self-help" {% if selected_category == 'self-help' %}selected{% endif %}>Self-Help</option>
+                        <option value="comics" {% if selected_category == 'comics' %}selected{% endif %}>Comics</option>
+                        <option value="sci-fi" {% if selected_category == 'sci-fi' %}selected{% endif %}>Science Fiction</option>
+                        <option value="fiction" {% if selected_category == 'fiction' %}selected{% endif %}>Fiction</option>
+                        <option value="non-fiction" {% if selected_category == 'non-fiction' %}selected{% endif %}>Non-Fiction</option>
+                        <option value="mystery" {% if selected_category == 'mystery' %}selected{% endif %}>Mystery & Thriller</option>
+                        <option value="romance" {% if selected_category == 'romance' %}selected{% endif %}>Romance</option>
+                        <option value="biography" {% if selected_category == 'biography' %}selected{% endif %}>Biography</option>
+                        {% for category in categories %}
+                            {% if category.id|stringformat:"s" != 'self-help' and category.id|stringformat:"s" != 'comics' and category.id|stringformat:"s" != 'sci-fi' and category.id|stringformat:"s" != 'fiction' and category.id|stringformat:"s" != 'non-fiction' and category.id|stringformat:"s" != 'mystery' and category.id|stringformat:"s" != 'romance' and category.id|stringformat:"s" != 'biography' %}
+                            <option value="{{ category.id }}" {% if category.id|stringformat:"s" == selected_category %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Language -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium" style="font-family: 'Poppins', sans-serif;">Language</label>
+                    <select class="form-select" name="language" style="font-family: 'Poppins', sans-serif;">
+                        <option value="">All Languages</option>
+                        
+                        <!-- Most Common -->
+                        <optgroup label="Most Common">
+                            <option value="english" {% if selected_language == 'english' %}selected{% endif %}>English</option>
+                            
+                        </optgroup>
+                        
+                        <!-- Indian Languages -->
+                        <optgroup label="Indian Languages">
+                            <option value="tamil" {% if selected_language == 'tamil' %}selected{% endif %}>Tamil</option>
+                            <option value="telugu" {% if selected_language == 'telugu' %}selected{% endif %}>Telugu</option>
+                            <option value="malayalam" {% if selected_language == 'malayalam' %}selected{% endif %}>Malayalam</option>
+                            <option value="hindi" {% if selected_language == 'hindi' %}selected{% endif %}>Hindi</option>
+                        </optgroup>
+                        
+                
+                    </select>
+                </div>
+
+                <!-- Price Range -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium" style="font-family: 'Poppins', sans-serif;">Price Range</label>
+                    <div class="row g-2">
+                        <div class="col">
+                            <input type="number" class="form-control" name="min_price" value="{{ min_price }}" 
+                                   placeholder="Min" min="0" style="font-family: 'Poppins', sans-serif;">
+                        </div>
+                        <div class="col">
+                            <input type="number" class="form-control" name="max_price" value="{{ max_price }}" 
+                                   placeholder="Max" min="0" style="font-family: 'Poppins', sans-serif;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sort By -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium" style="font-family: 'Poppins', sans-serif;">Sort By</label>
+                    <select class="form-select" name="sort_by" style="font-family: 'Poppins', sans-serif;">
+                        <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Title (A-Z)</option>
+                        <option value="price_low" {% if sort_by == 'price_low' %}selected{% endif %}>Price: Low to High</option>
+                        <option value="price_high" {% if sort_by == 'price_high' %}selected{% endif %}>Price: High to Low</option>
+                        <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest First</option>
+                    </select>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary" style="font-family: 'Poppins', sans-serif;">
+                        Apply Filters
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="resetFilters()" 
+                            style="font-family: 'Poppins', sans-serif;">
+                        Reset Filters
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function resetFilters() {
+            const form = document.getElementById('filterForm');
+            const inputs = form.querySelectorAll('input, select');
+            inputs.forEach(input => {
+                if (input.type === 'text' || input.type === 'number') {
+                    input.value = '';
+                } else if (input.type === 'select-one') {
+                    input.selectedIndex = 0;
+                }
+            });
+            form.submit();
+        }
+    </script>
+
+    <!-- Hero Section -->
+    <section class="hero py-4 py-md-5 my-4">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-6 mb-4 mb-lg-0">
+                    <h1 class="display-4 mb-3">Transform Your Life, One Habit at a Time!</h1>
+                    <p class="lead text-muted mb-4">Discover the power of small changes with Atomic Habits and other life-changing books. Start your journey today!</p>
+                    <a href="{%url 'product_page' %}" class="btn btn-dark btn-lg rounded-pill px-4">Shop Now</a>
+                </div>
+                {% load static %}
+                <div class="col-lg-6">
+                    <img src="{% static 'Self Help/atomic habits.jpg' %}" alt="Atomic Habits Book Cover" class="img-fluid rounded shadow">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Top Selling Section -->
+    <section class="py-5" id="top-selling">
+        <div class="container">
+            <h2 class="text-center mb-5 fw-bold" style="font-size: 3rem; font-family: 'Impact', sans-serif;">Top Selling</h2>
+            <div class="row justify-content-between g-5">
+                <!-- Book 1 - Left corner -->
+                <div class="col-12 col-md-3 text-center">
+                    <div class="book-card border-0">
+                        <div class="book-image-container mb-3" style="height: 450px;">
+                            <img src="{% static 'Self Help/atomic habits.jpg' %}" alt="Book 1" class="img-fluid h-100">
+                        </div>
+                        <h5 class="mb-1 fw-bold" style="font-size: 1.3rem;">Atomic Habits</h5>
+                        <p class="mb-2" style="font-size: 1rem; color: #333;">₹ 1299</p>
+                    </div>
+                </div>
+                
+                <!-- Book 2 - Center, slightly larger -->
+                <div class="col-12 col-md-4 text-center">
+                    <div class="book-card border-0">
+                        <div class="book-image-container mb-3" style="height: 480px;">
+                            <img src="{% static 'Sci-Fi/Dune.jpg' %}" alt="Book 2" class="img-fluid h-100">
+                        </div>
+                        <h5 class="mb-1 fw-bold" style="font-size: 1.4rem;">Dune</h5>
+                        <p class="mb-2" style="font-size: 1.1rem; color: #333;">₹ 1500</p>
+                    </div>
+                </div>
+                
+                <!-- Book 3 - Right corner -->
+                <div class="col-12 col-md-3 text-center">
+                    <div class="book-card border-0">
+                        <div class="book-image-container mb-3" style="height: 450px;">
+                            <img src="{% static 'Romantic Novel/How to steal a Heart.jpg' %}" alt="Book 3" class="img-fluid h-100">
+                        </div>
+                        <h5 class="mb-1 fw-bold" style="font-size: 1.3rem;">How to steal a Heart</h5>
+                        <p class="mb-2" style="font-size: 1rem; color: #333;">₹ 1299</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Upcoming Section -->
+    <section class="py-5 bg-white">
+        <div class="container">
+            <h2 class="text-center mb-5 fw-bold" style="font-size: 3rem; font-family: 'Impact', sans-serif;">Upcoming Arrivals</h2>
+            <div class="row row-cols-2 row-cols-md-4 justify-content-center g-4">
+                <!-- Book 1 -->
+                <div class="col text-center">
+                    <div class="book-card border-0">
+                        <div class="book-image-container mb-3" style="height: 320px;">
+                            <img src="{% static 'New Arriaval/1.jpg' %}" alt="New Book 1" class="img-fluid h-100">
+                        </div>
+                        <h5 class="mb-1 fw-bold" style="font-size: 1.1rem;">A way of being</h5>
+                        <p class="text-muted mb-1" style="font-size: 0.9rem;">Rick Rubin</p>
+                        <p class="fw-bold mb-0" style="font-size: 0.9rem;">Coming Soon</p>
+                    </div>
+                </div>
+                
+                <!-- Book 2 -->
+                <div class="col text-center">
+                    <div class="book-card border-0">
+                        <div class="book-image-container mb-3" style="height: 320px;">
+                            <img src="{% static 'New Arriaval/2.jpg' %}" alt="New Book 2" class="img-fluid h-100">
+                        </div>
+                        <h5 class="mb-1 fw-bold" style="font-size: 1.1rem;">Never Get Angry Again</h5>
+                        <p class="text-muted mb-1" style="font-size: 0.9rem;">Dr. David J. Lieberman</p>
+                        <p class="fw-bold mb-0" style="font-size: 0.9rem;">Coming Soon</p>
+                    </div>
+                </div>
+                
+                <!-- Book 3 -->
+                <div class="col text-center">
+                    <div class="book-card border-0">
+                        <div class="book-image-container mb-3" style="height: 320px;">
+                            <img src="{% static 'New Arriaval/3.jpg' %}" alt="New Book 3" class="img-fluid h-100">
+                        </div>
+                        <h5 class="mb-1 fw-bold" style="font-size: 1.1rem;">Fourth Wing</h5>
+                        <p class="text-muted mb-1" style="font-size: 0.9rem;">Rebecca Yarros</p>
+                        <p class="fw-bold mb-0" style="font-size: 0.9rem;">Coming Soon</p>
+                    </div>
+                </div>
+                
+                <!-- Book 4 -->
+                <div class="col text-center">
+                    <div class="book-card border-0">
+                        <div class="book-image-container mb-3" style="height: 320px;">
+                            <img src="{% static 'New Arriaval/4.jpg' %}" alt="New Book 4" class="img-fluid h-100">
+                        </div>
+                        <h5 class="mb-1 fw-bold" style="font-size: 1.1rem;">The Anxious Generation</h5>
+                        <p class="text-muted mb-1" style="font-size: 0.9rem;">Jonathan Haidt</p>
+                        <p class="fw-bold mb-0" style="font-size: 0.9rem;">Coming Soon</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Categories Section -->
+    <section class="py-5 bg-light">
+        <div class="container">
+            <h2 class="text-center mb-5 fw-bold" style="font-size: 3rem; font-family: 'Impact', sans-serif;">Categories</h2>
+            <div class="row g-4 justify-content-center">
+                <!-- Self Help Collection -->
+                <div class="col-12 col-md-6 mb-4">
+                    <div class="category-card p-4 bg-white rounded-4 shadow transition-all duration-300" 
+                         style="transition: transform 0.3s ease, box-shadow 0.3s ease;"
+                         onmouseover="this.style.transform='scale(1.03)'; this.style.boxShadow='0 10px 20px rgba(0,0,0,0.15)';" 
+                         onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='';">
+                        <h3 class="text-center fw-bold mt-3" style="font-size: 1.75rem;">Self Help Collections</h3>
+                        <div class="d-flex justify-content-center mb-4">
+                            <div class="mx-2" style="width: 30%;">
+                                <img src="{% static 'Self Help/think and grow rich.jpg' %}" alt="Self Help Book 1" class="w-100">
+                            </div>
+                            <div class="mx-2" style="width: 30%;">
+                                <img src="{% static 'Self Help/the power of writing down.jpg' %}" alt="Self Help Book 2" class="w-100">
+                            </div>
+                            <div class="mx-2" style="width: 30%;">
+                                <img src="{% static 'Self Help/7 habits.jpg' %}" alt="Self Help Book 3" class="w-100">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sci-Fi Collection -->
+                <div class="col-12 col-md-6 mb-4">
+                    <div class="category-card p-4 bg-white rounded-4 shadow" 
+                         style="transition: transform 0.3s ease, box-shadow 0.3s ease;"
+                         onmouseover="this.style.transform='scale(1.03)'; this.style.boxShadow='0 10px 20px rgba(0,0,0,0.15)';" 
+                         onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='';">
+                        <h3 class="text-center fw-bold mt-3" style="font-size: 1.75rem;">Sci-Fi Collections</h3>
+                        <div class="d-flex justify-content-center mb-4">
+                            <div class="mx-2" style="width: 30%;">
+                                <img src="{% static 'Sci-Fi/1.jpg' %}" alt="Sci-Fi Book 1" class="w-100">
+                            </div>
+                            <div class="mx-2" style="width: 30%;">
+                                <img src="{% static 'Sci-Fi/2.jpg' %}" alt="Sci-Fi Book 2" class="w-100">
+                            </div>
+                            <div class="mx-2" style="width: 30%;">
+                                <img src="{% static 'Sci-Fi/3.jpg' %}" alt="Sci-Fi Book 3" class="w-100">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Comic Collection -->
+                <div class="col-12 col-md-6 mb-4">
+                    <div class="category-card p-4 bg-white rounded-4 shadow" 
+                         style="transition: transform 0.3s ease, box-shadow 0.3s ease;"
+                         onmouseover="this.style.transform='scale(1.03)'; this.style.boxShadow='0 10px 20px rgba(0,0,0,0.15)';" 
+                         onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='';">
+                        <div class="d-flex flex-wrap justify-content-center mb-4">
+                            <div class="m-2" style="width: 42%;">
+                                <img src="{% static 'Comic/Superman Batman (2003) comic books.jpeg' %}" alt="Comic Book 1" class="w-100">
+                            </div>
+                            <div class="m-2" style="width: 42%;">
+                                <img src="{% static 'Comic/Captain America_ Civil War__The Avengers Are No More!_.jpeg' %}" alt="Comic Book 2" class="w-100">
+                            </div>
+                            <div class="m-2" style="width: 42%;">
+                                <img src="{% static 'Comic/Avengers #151 (1st Series 1963) September 1976  Marvel Comics  Grade Fine.jpeg' %}" alt="Comic Book 3" class="w-100">
+                            </div>
+                            <div class="m-2" style="width: 42%;">
+                                <img src="{% static 'Comic/Justice League #1.jpeg' %}" alt="Comic Book 4" class="w-100">
+                            </div>
+                        </div>
+                        <h3 class="text-center fw-bold mt-3" style="font-size: 1.75rem;">Comic Collections</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer mt-5">
+        <div class="container">
+            <div class="row g-4">
+                <div class="col-12 col-md-6 col-lg-3">
+                    <h3 class="footer-logo mb-3">BookNest</h3>
+                    <p class="text-muted">Where stories find home</p>
+                    <div class="d-flex gap-3 mt-4">
+                        <a href="#" class="footer-link"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="footer-link"><i class="fab fa-facebook"></i></a>
+                        <a href="#" class="footer-link"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="footer-link"><i class="fab fa-github"></i></a>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-3">
+                    <h5 class="mb-3">Company</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="#" class="footer-link">About</a></li>
+                        <li class="mb-2"><a href="#" class="footer-link">Features</a></li>
+                        <li class="mb-2"><a href="#" class="footer-link">Works</a></li>
+                        <li class="mb-2"><a href="#" class="footer-link">Career</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-6 col-md-3">
+                    <h5 class="mb-3">Help</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="#" class="footer-link">Support</a></li>
+                        <li class="mb-2"><a href="#" class="footer-link">Delivery</a></li>
+                        <li class="mb-2"><a href="#" class="footer-link">Terms</a></li>
+                        <li class="mb-2"><a href="#" class="footer-link">Privacy</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-6 col-md-3">
+                    <h5 class="mb-3">Resources</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="#" class="footer-link">Free eBooks</a></li>
+                        <li class="mb-2"><a href="#" class="footer-link">Tutorials</a></li>
+                        <li class="mb-2"><a href="#" class="footer-link">Blog</a></li>
+                        <li class="mb-2"><a href="#" class="footer-link">YouTube</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="border-top mt-5 pt-4">
+                <div class="row align-items-center">
+                    <div class="col-md-6 text-center text-md-start">
+                        <p class="text-muted mb-0">&copy; 2000-2025 BookNest. All rights reserved</p>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-center justify-content-md-end payment-icons mt-3 mt-md-0">
+                            <img src="https://storage.googleapis.com/a1aa/image/CvETv1XFoc14cAELH7V0nxMX2Ilypfi6g6Q6_xdHPzs.jpg" alt="Visa" class="img-fluid">
+                            <img src="https://storage.googleapis.com/a1aa/image/PXFIRqQYpm56O8w3vEkSZlUZzocz7LWve1cX9O6P9Rs.jpg" alt="Mastercard" class="img-fluid">
+                            <img src="https://storage.googleapis.com/a1aa/image/sLigJSAzyE-Xx6s29No18urJ9gAB6iebGYousYixUfA.jpg" alt="PayPal" class="img-fluid">
+                            <img src="https://storage.googleapis.com/a1aa/image/H5sQZyRcLlTM0fHhzISB1otRbhjvmCpOVFegDSwAvvo.jpg" alt="Apple Pay" class="img-fluid">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS and Popper.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
+</body>
+</html>

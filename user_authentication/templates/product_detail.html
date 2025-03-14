@@ -1,0 +1,783 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block extra_js %}
+<script>
+    function showToast(message, type = 'success') {
+        const toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            const newContainer = document.createElement('div');
+            newContainer.className = 'toast-container';
+            document.body.appendChild(newContainer);
+        }
+        
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        toastContainer.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    function updateQuantity(change) {
+        const input = document.getElementById('quantity');
+        const currentValue = parseInt(input.value);
+        const maxStock = parseInt(input.getAttribute('data-max-stock'));
+        const maxAllowed = Math.min(5, maxStock); // Limit to 5 or stock, whichever is lower
+        const newValue = Math.max(1, Math.min(maxAllowed, currentValue + change));
+        input.value = newValue;
+        
+        // Update button states
+        document.querySelector('.quantity-selector button:first-child').disabled = newValue <= 1;
+        document.querySelector('.quantity-selector button:last-child').disabled = newValue >= maxAllowed;
+    }
+
+    function addToCart(productId) {
+        try {
+            const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+            const quantity = document.getElementById('quantity').value;
+
+            if (!csrfToken) {
+                console.error('CSRF token not found');
+                showToast('Error: CSRF token not found', 'error');
+                return;
+            }
+
+            console.log('Adding to cart:', productId);
+            console.log('Quantity:', quantity);
+            console.log('CSRF Token:', csrfToken);
+            
+            fetch("{% url 'cart_section:add_to_cart' product_id=product.id %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
+                },
+                body: `quantity=${quantity}`,
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                console.log('Response:', response);
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Response data:', data);
+                if (data.status === 'success') {
+                    showToast(data.message || 'Added to cart successfully');
+                    // Update cart badge in navbar if it exists
+                    const cartBadge = document.querySelector('.cart-badge');
+                    if (cartBadge) {
+                        cartBadge.textContent = data.cart_count;
+                    } else {
+                        // If badge doesn't exist, create it
+                        const cartIcon = document.querySelector('.cart-icon');
+                        if (cartIcon) {
+                            const badge = document.createElement('span');
+                            badge.className = 'cart-badge';
+                            badge.textContent = data.cart_count;
+                            cartIcon.parentElement.appendChild(badge);
+                        }
+                    }
+
+                    // Update wishlist icon if it exists
+                    const wishlistIcon = document.querySelector(`.wishlist-icon[data-product-id="${productId}"]`);
+                    if (wishlistIcon && wishlistIcon.classList.contains('filled')) {
+                        wishlistIcon.classList.remove('filled');
+                    }
+                } else {
+                    showToast(data.message || 'Error adding to cart', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                console.error('Error stack:', error.stack);
+                showToast('Error adding to cart: ' + error.message, 'error');
+            });
+        } catch (error) {
+            console.error('JavaScript error:', error);
+            console.error('Error stack:', error.stack);
+            showToast('Error: ' + error.message, 'error');
+        }
+    }
+
+    function setModalImage(src) {
+        document.getElementById('modalImage').src = src;
+    }
+
+    function buyNow(productId) {
+        try {
+            const quantity = parseInt(document.getElementById('quantity').value);
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            // Disable the button to prevent multiple clicks
+            const buyNowBtn = document.querySelector('.btn-outline-custom');
+            const originalBtnText = buyNowBtn.innerHTML;
+            buyNowBtn.disabled = true;
+            buyNowBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+
+            fetch(`{% url 'cart_section:buy_now' product_id=product.id %}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
+                },
+                body: `quantity=${quantity}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.location.href = data.redirect_url;
+                } else {
+                    showToast(data.message || 'Error processing your request', 'error');
+                    // Re-enable the button
+                    buyNowBtn.disabled = false;
+                    buyNowBtn.innerHTML = originalBtnText;
+                }
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                console.error('Error stack:', error.stack);
+                showToast('Error processing your request: ' + error.message, 'error');
+                // Re-enable the button
+                buyNowBtn.disabled = false;
+                buyNowBtn.innerHTML = originalBtnText;
+            });
+        } catch (error) {
+            console.error('JavaScript error:', error);
+            console.error('Error stack:', error.stack);
+            showToast('Error: ' + error.message, 'error');
+            // Re-enable the button if it exists
+            const buyNowBtn = document.querySelector('.btn-outline-custom');
+            if (buyNowBtn) {
+                buyNowBtn.disabled = false;
+                buyNowBtn.innerHTML = '<i class="fas fa-bolt me-2"></i>Buy Now';
+            }
+        }
+    }
+
+    function toggleWishlist(productId, icon) {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        fetch(`{% url 'user_profile:toggle_wishlist' product_id=0 %}`.replace('0', productId), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrfToken
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Toggle the filled class based on the message
+                if (data.message.includes('added')) {
+                    icon.classList.add('filled');
+                } else {
+                    icon.classList.remove('filled');
+                }
+                showToast(data.message || 'Wishlist updated successfully');
+            } else {
+                showToast(data.message || 'Could not update wishlist. Please try again.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Could not update wishlist. Please try again later.', 'error');
+        });
+    }
+
+    // Initialize all tooltips
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+        
+        // Initialize quantity buttons
+        const quantityInput = document.getElementById('quantity');
+        if (quantityInput) {
+            const maxStock = parseInt(quantityInput.getAttribute('data-max-stock'));
+            const maxAllowed = Math.min(5, maxStock);
+            
+            // Set max attribute to the lower of 5 or stock
+            quantityInput.max = maxAllowed;
+            
+            // Update button states
+            document.querySelector('.quantity-selector button:first-child').disabled = true; // Minus button (initially disabled)
+            document.querySelector('.quantity-selector button:last-child').disabled = maxAllowed <= 1; // Plus button
+            
+            // Add input event listener to handle manual input
+            quantityInput.addEventListener('input', function() {
+                let value = parseInt(this.value) || 1;
+                value = Math.max(1, Math.min(maxAllowed, value));
+                this.value = value;
+                
+                // Update button states
+                document.querySelector('.quantity-selector button:first-child').disabled = value <= 1;
+                document.querySelector('.quantity-selector button:last-child').disabled = value >= maxAllowed;
+            });
+        }
+    });
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-color: #8B4513;
+        --primary-hover: #6b3410;
+        --light-brown: #f5e6d3;
+        --bg-light: #fafafa;
+        --btn-shadow: rgba(139, 69, 19, 0.2);
+    }
+
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+    }
+
+    .toast {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 10px;
+        padding: 15px 20px;
+        animation: slideIn 0.3s ease-out;
+        border: none;
+    }
+
+    .toast.success {
+        border-left: 4px solid var(--primary-color);
+    }
+
+    .toast.error {
+        border-left: 4px solid #dc3545;
+    }
+
+    .toast.warning {
+        border-left: 4px solid #ffc107;
+    }
+
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+
+    .product-title {
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+
+    .author-name {
+        color: #666;
+        font-size: 1.1rem;
+    }
+
+    .price-tag {
+        color: var(--primary-color);
+        font-weight: 600;
+        font-size: 2rem;
+        margin: 0;
+    }
+
+    .original-price {
+        color: #666;
+        text-decoration: line-through;
+        font-size: 1.2rem;
+    }
+
+    .discount-badge {
+        background-color: var(--light-brown);
+        color: var(--primary-color);
+        padding: 4px 12px;
+        border-radius: 15px;
+        font-weight: 500;
+    }
+
+    .star-rating {
+        color: #ffc107;
+    }
+
+    .btn-custom {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 12px 30px;
+        border: none;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px var(--btn-shadow);
+    }
+
+    .btn-custom:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-2px);
+        color: white;
+        box-shadow: 0 6px 12px var(--btn-shadow);
+    }
+
+    .btn-outline-custom {
+        background-color: transparent;
+        color: var(--primary-color);
+        border: 2px solid var(--primary-color);
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px var(--btn-shadow);
+    }
+
+    .btn-outline-custom:hover {
+        background-color: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px var(--btn-shadow);
+    }
+
+    .quantity-selector {
+        display: flex;
+        align-items: center;
+        background-color: var(--light-brown);
+        border-radius: 25px;
+        padding: 5px;
+        box-shadow: 0 2px 4px var(--btn-shadow);
+    }
+
+    .quantity-selector button {
+        background-color: white;
+        color: var(--primary-color);
+        border: none;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        font-size: 1.2rem;
+        line-height: 1;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px var(--btn-shadow);
+    }
+
+    .quantity-selector button:hover {
+        background-color: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .quantity-selector input {
+        width: 60px;
+        text-align: center;
+        border: none;
+        background: transparent;
+        color: var(--primary-color);
+        font-weight: 500;
+        margin: 0 10px;
+    }
+
+    .quantity-selector input:focus {
+        outline: none;
+    }
+
+    .image-hover-zoom {
+        overflow: hidden;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+
+    .image-hover-zoom:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    .image-hover-zoom img {
+        transition: transform 0.3s ease;
+    }
+
+    .image-hover-zoom:hover img {
+        transform: scale(1.1);
+    }
+
+    .thumbnail {
+        border-radius: 10px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .thumbnail:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .modal-content {
+        border-radius: 15px;
+        overflow: hidden;
+    }
+
+    .product-details {
+        background-color: var(--light-brown);
+        padding: 20px;
+        border-radius: 15px;
+        margin-top: 2rem;
+    }
+
+    .product-details h5 {
+        color: var(--primary-color);
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+
+    .book-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px var(--btn-shadow);
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+
+    .book-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px var(--btn-shadow);
+    }
+
+    .related-products {
+        padding: 2rem 0;
+        background-color: var(--bg-light);
+        border-radius: 15px;
+    }
+
+    .related-products h3 {
+        font-family: 'Playfair Display', serif;
+        position: relative;
+        display: inline-block;
+        padding-bottom: 10px;
+    }
+
+    .related-products h3::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 50px;
+        height: 2px;
+        background-color: var(--primary-color);
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        text-align: center;
+    }
+
+    .badge-danger {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .badge-warning {
+        background-color: #ffc107;
+        color: #212529;
+    }
+
+    .badge-info {
+        background-color: #17a2b8;
+        color: white;
+    }
+
+    .wishlist-icon {
+        font-size: 24px;
+        color: #8B4513;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: rgba(255, 255, 255, 0.9);
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        z-index: 10;
+    }
+
+    .wishlist-icon.filled {
+        color: #8B4513;
+    }
+
+    .wishlist-icon:not(.filled) {
+        color: #d4d4d4;
+    }
+
+    .wishlist-icon:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Toast Container for Messages -->
+    <div class="toast-container"></div>
+
+    <!-- Hidden CSRF Token -->
+    {% csrf_token %}
+
+    <div class="row">
+        <!-- Product Images -->
+        <div class="col-md-5">
+            <div class="product-images">
+                <!-- Main Image -->
+                <div class="main-image mb-3 image-hover-zoom">
+                    <img src="{{ product.cover_image.url }}" class="img-fluid main-product-image" alt="{{ product.title }}" 
+                         style="width: 100%; max-height: 500px; object-fit: contain; background: var(--light-brown);"
+                         data-bs-toggle="modal" data-bs-target="#imageModal"
+                         onclick="setModalImage(this.src)">
+                </div>
+                <!-- Thumbnail Images -->
+                <div class="thumbnail-images d-flex">
+                    <div class="thumbnail me-2 p-2" style="width: 80px; height: 100px;">
+                        <img src="{{ product.cover_image.url }}" class="img-fluid" alt="Thumbnail 1"
+                             style="width: 100%; height: 100%; object-fit: contain;"
+                             data-bs-toggle="modal" data-bs-target="#imageModal"
+                             onclick="setModalImage(this.src)">
+                    </div>
+                    {% for image in product.additional_images.all %}
+                    <div class="thumbnail me-2 p-2" style="width: 80px; height: 100px;">
+                        <img src="{{ image.image.url }}" class="img-fluid" alt="Thumbnail {{ forloop.counter|add:1 }}"
+                             style="width: 100%; height: 100%; object-fit: contain;"
+                             data-bs-toggle="modal" data-bs-target="#imageModal"
+                             onclick="setModalImage(this.src)">
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Details -->
+        <div class="col-md-7">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <h1 class="product-title mb-0">{{ product.title }}</h1>
+                {% if user.is_authenticated %}
+                <div class="wishlist-icon {% if is_in_wishlist %}filled{% endif %}"
+                     onclick="toggleWishlist({{ product.id }}, this)"
+                     data-product-id="{{ product.id }}"
+                     style="position: relative; top: 0; right: 0;">
+                    <i class="fas fa-heart"></i>
+                </div>
+                {% endif %}
+            </div>
+            <p class="author-name mb-3">by {{ product.author }}</p>
+
+            <!-- Product Status -->
+            {% if product.status != 'active' %}
+            <div class="mb-3">
+                <span class="status-badge 
+                    {% if product.status == 'inactive' %}badge-danger
+                    {% elif product.status == 'out_of_stock' %}badge-warning
+                    {% elif product.status == 'coming_soon' %}badge-info
+                    {% endif %}">
+                    {% if product.status == 'inactive' %}Inactive
+                    {% elif product.status == 'out_of_stock' %}Out of Stock
+                    {% elif product.status == 'coming_soon' %}Coming Soon
+                    {% endif %}
+                </span>
+            </div>
+            {% endif %}
+
+            <!-- Rating -->
+            <div class="mb-3">
+                <div class="d-flex align-items-center">
+                    <div class="star-rating me-2">
+                        {% with ''|center:5 as range %}
+                        {% for _ in range %}
+                            {% if forloop.counter <= average_rating %}
+                                <i class="fas fa-star"></i>
+                            {% elif forloop.counter <= average_rating|add:0.5 %}
+                                <i class="fas fa-star-half-alt"></i>
+                            {% else %}
+                                <i class="far fa-star"></i>
+                            {% endif %}
+                        {% endfor %}
+                        {% endwith %}
+                    </div>
+                    <span class="text-muted">{{ average_rating }} ({{ rating_count }} reviews)</span>
+                </div>
+            </div>
+
+            <!-- Price -->
+            <div class="mb-4">
+                {% if product.get_best_offer %}
+                    {% with best_offer=product.get_best_offer %}
+                        {% if best_offer.is_valid and best_offer.end_date > now %}
+                            <!-- Display offer price -->
+                            <div class="d-flex align-items-center">
+                                <h2 class="price-tag mb-0">₹{{ best_offer.get_discounted_price }}</h2>
+                                <span class="original-price ms-3">₹{{ product.price }}</span>
+                                <span class="discount-badge ms-3">
+                                    {{ best_offer.discount_percentage }}% OFF
+                                </span>
+                                <span class="badge bg-success ms-2">{{ best_offer.type }}: {{ best_offer.title }}</span>
+                            </div>
+                        {% elif product.discount_price %}
+                            <!-- Display manual discount price -->
+                            <div class="d-flex align-items-center">
+                                <h2 class="price-tag mb-0">₹{{ product.discount_price }}</h2>
+                                <span class="original-price ms-3">₹{{ product.price }}</span>
+                                <span class="discount-badge ms-3">
+                                    {% with savings=product.price|subtract:product.discount_price %}
+                                    {% with discount_percent=savings|percentage:product.price %}
+                                    {{ discount_percent }}% OFF
+                                    {% endwith %}
+                                    {% endwith %}
+                                </span>
+                            </div>
+                        {% else %}
+                            <!-- Display regular price -->
+                            <h2 class="price-tag">₹{{ product.price }}</h2>
+                        {% endif %}
+                    {% endwith %}
+                {% elif product.discount_price %}
+                    <!-- Display manual discount price -->
+                    <div class="d-flex align-items-center">
+                        <h2 class="price-tag mb-0">₹{{ product.discount_price }}</h2>
+                        <span class="original-price ms-3">₹{{ product.price }}</span>
+                        <span class="discount-badge ms-3">
+                            {% with savings=product.price|subtract:product.discount_price %}
+                            {% with discount_percent=savings|percentage:product.price %}
+                            {{ discount_percent }}% OFF
+                            {% endwith %}
+                            {% endwith %}
+                        </span>
+                    </div>
+                {% else %}
+                    <!-- Display regular price -->
+                    <h2 class="price-tag">₹{{ product.price }}</h2>
+                {% endif %}
+            </div>
+
+            <!-- Quantity and Add to Cart -->
+            <div class="d-flex align-items-center mb-4">
+                <div class="quantity-selector me-3">
+                    <button onclick="updateQuantity(-1)" disabled>-</button>
+                    <input type="number" id="quantity" value="1" min="1" max="{{ product.stock }}" data-max-stock="{{ product.stock }}">
+                    <button onclick="updateQuantity(1)" {% if product.stock <= 1 %}disabled{% endif %}>+</button>
+                </div>
+                <div class="d-flex gap-3">
+                    <button class="btn-custom flex items-center space-x-2" onclick="addToCart({{ product.id }})">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>Add to Cart</span>
+                    </button>
+                    
+                    <button class="btn-outline-custom w-full" onclick="buyNow({{ product.id }})">
+                        <i class="fas fa-bolt me-2"></i>Buy Now
+                    </button>
+                </div>
+            </div>
+
+            <!-- Product Details -->
+            <div class="product-details">
+                <h5>Product Details</h5>
+                <p>{{ product.description }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Related Products Section -->
+    <div class="related-products mt-5">
+        <h3 class="text-center mb-4" style="color: var(--primary-color); font-weight: 600;">Related Books</h3>
+        <div class="row row-cols-1 row-cols-md-4 g-4">
+            {% for related_product in related_products %}
+            {% if related_product.id != product.id %}
+            <div class="col">
+                <div class="book-card h-100">
+                    <a href="{% url 'product_detail' related_product.slug %}" class="text-decoration-none">
+                        <div class="image-hover-zoom mb-3">
+                            <img src="{{ related_product.cover_image.url }}" 
+                                 class="img-fluid" 
+                                 alt="{{ related_product.title }}"
+                                 style="width: 100%; height: 300px; object-fit: cover;">
+                        </div>
+                        <div class="card-body p-3">
+                            <h5 class="product-title mb-2">{{ related_product.title }}</h5>
+                            <p class="author-name mb-2">by {{ related_product.author }}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                {% if related_product.get_best_offer %}
+                                    {% with best_offer=related_product.get_best_offer %}
+                                        {% if best_offer.is_valid and best_offer.end_date > now %}
+                                            <div>
+                                                <span class="price-tag" style="font-size: 1.2rem;">₹{{ best_offer.get_discounted_price }}</span>
+                                                <span class="original-price ms-2">₹{{ related_product.price }}</span>
+                                            </div>
+                                            <span class="discount-badge">
+                                                {{ best_offer.discount_percentage }}% OFF
+                                            </span>
+                                        {% elif related_product.discount_price %}
+                                            <div>
+                                                <span class="price-tag" style="font-size: 1.2rem;">₹{{ related_product.discount_price }}</span>
+                                                <span class="original-price ms-2">₹{{ related_product.price }}</span>
+                                            </div>
+                                            <span class="discount-badge">
+                                                {% with savings=related_product.price|subtract:related_product.discount_price %}
+                                                {% with discount_percent=savings|percentage:related_product.price %}
+                                                {{ discount_percent }}% OFF
+                                                {% endwith %}
+                                                {% endwith %}
+                                            </span>
+                                        {% else %}
+                                            <span class="price-tag" style="font-size: 1.2rem;">₹{{ related_product.price }}</span>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% elif related_product.discount_price %}
+                                <div>
+                                    <span class="price-tag" style="font-size: 1.2rem;">₹{{ related_product.discount_price }}</span>
+                                    <span class="original-price ms-2">₹{{ related_product.price }}</span>
+                                </div>
+                                <span class="discount-badge">
+                                    {% with savings=related_product.price|subtract:related_product.discount_price %}
+                                    {% with discount_percent=savings|percentage:related_product.price %}
+                                    {{ discount_percent }}% OFF
+                                    {% endwith %}
+                                    {% endwith %}
+                                </span>
+                                {% else %}
+                                <span class="price-tag" style="font-size: 1.2rem;">₹{{ related_product.price }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Image Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-0">
+                <img id="modalImage" src="" class="img-fluid" alt="Product Image">
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

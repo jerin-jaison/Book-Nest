@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .signup-container {
+            max-width: 400px;
+            width: 90%;
+            padding: 20px;
+        }
+        .signup-title {
+            color: #75530d;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+        }
+        .btn-signup {
+            background-color: #75530d;
+            border-color: #75530d;
+            color: white;
+            padding: 12px;
+            width: 100%;
+            font-size: 1rem;
+            border-radius: 25px;
+            margin-bottom: 15px;
+        }
+        .btn-signup:hover {
+            background-color: #614408;
+            border-color: #614408;
+        }
+        .form-control {
+            padding: 12px;
+            margin-bottom: 15px;
+        }
+        .login-text {
+            text-align: center;
+            margin-top: 20px;
+            color: #6c757d;
+        }
+        .login-link {
+            color: #75530d;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .password-requirements {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: -10px;
+            margin-bottom: 15px;
+        }
+        .name-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .form-floating label {
+            padding-left: 12px;
+        }
+        .form-floating>.form-control {
+            padding: 12px;
+        }
+    </style>
+    <script>
+        // Configure toastr
+        toastr.options = {
+            "closeButton": true,
+            "progressBar": true,
+            "positionClass": "toast-top-right",
+            "timeOut": "3000"
+        };
+        
+        // Display Django messages with toastr
+        {% if messages %}
+            {% for message in messages %}
+                {% if message.tags == 'success' %}
+                    toastr.success("{{ message }}");
+                {% elif message.tags == 'error' %}
+                    toastr.error("{{ message }}");
+                {% elif message.tags == 'info' %}
+                    toastr.info("{{ message }}");
+                {% elif message.tags == 'warning' %}
+                    toastr.warning("{{ message }}");
+                {% else %}
+                    toastr.info("{{ message }}");
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+        
+        // Setup CSRF token for AJAX requests
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        const csrftoken = getCookie('csrftoken');
+        
+        // Set up AJAX with CSRF token
+        $.ajaxSetup({
+            beforeSend: function(xhr, settings) {
+                if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                    xhr.setRequestHeader("X-CSRFToken", csrftoken);
+                }
+            }
+        });
+        
+        // AJAX form submission
+        $(document).ready(function() {
+            $('#signupForm').submit(function(e) {
+                e.preventDefault();
+                
+                $.ajax({
+                    type: 'POST',
+                    url: '{% url "signup_page" %}',
+                    data: $(this).serialize(),
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': csrftoken
+                    },
+                    success: function(response) {
+                        if (response.status === 'success') {
+                            toastr.success(response.message);
+                            // Redirect after a short delay
+                            setTimeout(function() {
+                                window.location.href = '{% url "otp_page_login" %}';
+                            }, 1000);
+                        } else {
+                            toastr.error(response.message);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        toastr.error('An error occurred. Please try again.');
+                        console.error(xhr.responseText);
+                    }
+                });
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class="signup-container">
+        <h1 class="signup-title">Sign Up</h1>
+        <p class="text-center mb-4">Please fill the information below</p>
+        
+        <!-- Display messages -->
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert {% if message.tags == 'success' %} alert-success {% else %}alert-danger{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <form id="signupForm" method="POST">
+            {% csrf_token %}
+            
+            <div class="form-floating mb-3">
+                <input type="text" class="form-control" id="username" name="username" 
+                pattern="^[a-zA-Z0-9_]*$"
+                placeholder="Username" required>
+                <label for="username">Username</label>
+                <!-- <small class="text-muted">letters, numbers and underscore only</small> -->
+            </div>
+
+            <div class="name-row">
+                <div class="form-floating">
+                    <input type="text" class="form-control" id="firstName" name="firstName" placeholder="First Name" required>
+                    <label for="firstName">First Name</label>
+                </div>
+                
+                <div class="form-floating">
+                    <input type="text" class="form-control" id="lastName" name="lastName" placeholder="Last Name" required>
+                    <label for="lastName">Last Name</label>
+                </div>
+            </div>
+            
+            <div class="form-floating mb-3">
+                <input type="email" class="form-control" id="email" name="email" placeholder="Email address" required>
+                <label for="email">Email address</label>
+            </div>
+            
+            <div class="form-floating mb-3">
+                <input type="password" class="form-control" id="password" name="password"
+                       pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}" 
+                       placeholder="Password" required>
+                <label for="password">Password</label>
+            </div>
+            
+            <div class="form-floating mb-3">
+                <input type="password" class="form-control" id="confirmPassword" name="confirmPassword"
+                       placeholder="Confirm Password" required>
+                <label for="confirmPassword">Confirm Password</label>
+            </div>
+            
+            <div class="form-floating mb-3">
+                <input type="text" class="form-control" id="referralCode" name="referralCode"
+                       placeholder="Referral Code (Optional)" value="{{ request.GET.ref }}">
+                <label for="referralCode">Referral Code (Optional)</label>
+                <small class="text-muted">Enter a referral code if you have one</small>
+            </div>
+            
+            <button type="submit" class="btn btn-signup">
+                Sign Up
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-right ms-2" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8z"/>
+                </svg>
+            </button>
+        </form>
+        
+        <div class="login-text">
+            Already have an account? <a href="{%url 'login_page'%}" class="login-link">Login</a>
+        </div>
+    </div>
+</body>
+</html>

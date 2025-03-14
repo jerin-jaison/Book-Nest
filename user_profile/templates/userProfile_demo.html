@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .sidebar {
+        background-color: #ffffff;
+        padding: 20px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+    }
+    
+    .sidebar-header {
+        font-size: 24px;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 30px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #f1f1f1;
+    }
+    
+    .sidebar-item {
+        padding: 12px 15px;
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+        border-radius: 5px;
+        color: #333;
+        text-decoration: none;
+        transition: background-color 0.2s;
+    }
+    
+    .sidebar-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .sidebar-item.active {
+        background-color: #f1f1f1;
+    }
+    
+    .sidebar-item i {
+        margin-right: 15px;
+        font-size: 18px;
+    }
+
+    .content-wrapper {
+        display: flex;
+        flex-direction: row;
+        min-height: calc(100vh - 150px);
+    }
+
+    .main-content {
+        flex: 1;
+        padding: 20px;
+        background-color: #f9f9f9;
+    }
+    
+    .mobile-sidebar-toggle {
+        display: none;
+        margin-bottom: 15px;
+        width: 100%;
+        padding: 10px;
+        background-color: #8B4513;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        text-align: left;
+        font-weight: 500;
+    }
+    
+    .mobile-sidebar-toggle i {
+        margin-right: 10px;
+    }
+    
+    /* Responsive styles */
+    @media (max-width: 991px) {
+        .content-wrapper {
+            flex-direction: column;
+        }
+        
+        .sidebar {
+            width: 100%;
+            margin-bottom: 20px;
+            height: auto;
+            max-height: 0;
+            overflow: hidden;
+            padding: 0;
+        }
+        
+        .sidebar.show {
+            max-height: 1000px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .mobile-sidebar-toggle {
+            display: flex;
+            align-items: center;
+        }
+        
+        .main-content {
+            width: 100%;
+        }
+    }
+    
+    @media (min-width: 992px) {
+        .sidebar {
+            width: 280px;
+            height: auto;
+            min-height: calc(100vh - 150px);
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .sidebar-item {
+            padding: 10px;
+        }
+        
+        .sidebar-header {
+            font-size: 20px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+        }
+        
+        .main-content {
+            padding: 15px 10px;
+        }
+    }
+</style>
+
+<div class="container mt-4">
+    <button class="mobile-sidebar-toggle" id="sidebarToggle">
+        <i class="bi bi-list"></i> Account Menu
+    </button>
+    
+    <div class="content-wrapper">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                My Account
+            </div>
+            
+            <a href="{% url 'user_profile:profile' %}" class="sidebar-item {% if request.resolver_match.url_name == 'profile' %}active{% endif %}">
+                <i class="bi bi-person-circle"></i>
+                Profile
+            </a>
+            
+            <a href="{% url 'user_profile:orders_list' %}" class="sidebar-item {% if request.resolver_match.url_name == 'orders_list' or request.resolver_match.url_name == 'order_detail' %}active{% endif %}">
+                <i class="bi bi-box-seam"></i>
+                My Orders <span class="badge bg-primary rounded-pill ms-2" id="orders-count"></span>
+            </a>
+            
+            <a href="{% url 'user_profile:wishlist' %}" class="sidebar-item">
+                <i class="bi bi-heart"></i>
+                Wishlist
+            </a>
+            
+            <a href="{% url 'user_profile:my_coupons' %}" class="sidebar-item {% if request.resolver_match.url_name == 'my_coupons' %}active{% endif %}">
+                <i class="bi bi-ticket-perforated"></i>
+                Coupons & Referrals
+            </a>
+            
+            <a href="{% url 'user_profile:address' %}" class="sidebar-item {% if request.resolver_match.url_name == 'address' %}active{% endif %}">
+                <i class="bi bi-geo-alt"></i>
+                Address
+            </a>
+            
+            <a href="{% url 'user_profile:change_password' %}" class="sidebar-item {% if request.resolver_match.url_name == 'change_password' %}active{% endif %}">
+                <i class="bi bi-key"></i>
+                Password
+            </a>
+            
+            <!-- <a href="{% url 'user_profile:acc_detail' %}" class="sidebar-item {% if request.resolver_match.url_name == 'acc_detail' %}active{% endif %}">
+                <i class="bi bi-person"></i>
+                Account Detail
+            </a> -->
+            
+            <a href="{% url 'signout' %}" class="sidebar-item text-danger">
+                <i class="bi bi-box-arrow-right"></i>
+                Logout
+            </a>
+        </div>
+
+        <div class="main-content">
+            {% block profile_content %}{% endblock %}
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Toggle sidebar on mobile
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebar = document.getElementById('sidebar');
+        
+        if (sidebarToggle && sidebar) {
+            sidebarToggle.addEventListener('click', function() {
+                sidebar.classList.toggle('show');
+                
+                // Change icon based on state
+                const icon = this.querySelector('i');
+                if (sidebar.classList.contains('show')) {
+                    icon.classList.remove('bi-list');
+                    icon.classList.add('bi-x');
+                } else {
+                    icon.classList.remove('bi-x');
+                    icon.classList.add('bi-list');
+                }
+            });
+            
+            // Close sidebar when clicking on a link (mobile only)
+            const sidebarLinks = document.querySelectorAll('.sidebar-item');
+            if (window.innerWidth < 992) {
+                sidebarLinks.forEach(link => {
+                    link.addEventListener('click', function() {
+                        sidebar.classList.remove('show');
+                        const icon = sidebarToggle.querySelector('i');
+                        icon.classList.remove('bi-x');
+                        icon.classList.add('bi-list');
+                    });
+                });
+            }
+        }
+    });
+</script>
+{% endblock %}

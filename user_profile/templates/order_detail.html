@@ -1,0 +1,355 @@
+{% extends 'userProfile_demo.html' %}
+{% load static %}
+
+{% block profile_content %}
+<style>
+    .order-detail-container {
+        padding: 20px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+
+    .order-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .order-info {
+        flex: 1;
+    }
+
+    .order-id {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        margin-bottom: 5px;
+    }
+
+    .order-date {
+        color: #666;
+        font-size: 0.9rem;
+    }
+
+    .order-status {
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .status-pending { background-color: #fff3cd; color: #856404; }
+    .status-confirmed { background-color: #cce5ff; color: #004085; }
+    .status-shipped { background-color: #d4edda; color: #155724; }
+    .status-delivered { background-color: #d1e7dd; color: #0f5132; }
+    .status-cancelled { background-color: #f8d7da; color: #721c24; }
+    .status-returned { background-color: #e2e3e5; color: #383d41; }
+
+    .order-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 30px;
+    }
+
+    .order-items {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+    }
+
+    .order-item {
+        display: flex;
+        gap: 20px;
+        padding: 15px;
+        background: white;
+        border-radius: 8px;
+        margin-bottom: 15px;
+    }
+
+    .item-image {
+        width: 80px;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 4px;
+    }
+
+    .item-details {
+        flex: 1;
+    }
+
+    .item-title {
+        font-weight: 500;
+        margin-bottom: 5px;
+    }
+
+    .item-price {
+        color: #666;
+        font-size: 0.9rem;
+    }
+
+    .order-summary {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+    }
+
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .summary-row:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+
+    .summary-label {
+        color: #666;
+    }
+
+    .summary-value {
+        font-weight: 500;
+    }
+
+    .total-row {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 2px solid #eee;
+    }
+
+    .shipping-address {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+
+    .address-title {
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+
+    .address-details p {
+        margin-bottom: 5px;
+        color: #666;
+    }
+
+    .reason-box {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+
+    .reason-title {
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+
+    .reason-text {
+        color: #666;
+        font-style: italic;
+    }
+
+    .timeline {
+        margin-top: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+
+    .timeline-title {
+        font-weight: 600;
+        margin-bottom: 20px;
+    }
+
+    .timeline-item {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 15px;
+        position: relative;
+    }
+
+    .timeline-item:not(:last-child)::before {
+        content: '';
+        position: absolute;
+        left: 5px;
+        top: 25px;
+        bottom: -15px;
+        width: 2px;
+        background: #ddd;
+    }
+
+    .timeline-dot {
+        width: 12px;
+        height: 12px;
+        background: var(--primary-color);
+        border-radius: 50%;
+        margin-top: 5px;
+    }
+
+    .timeline-content {
+        flex: 1;
+    }
+
+    .timeline-date {
+        color: #666;
+        font-size: 0.9rem;
+    }
+
+    .timeline-text {
+        margin-top: 5px;
+    }
+
+    .timeline-description {
+        color: #666;
+        font-size: 0.9rem;
+    }
+
+    .btn-action {
+        padding: 5px 15px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        text-decoration: none;
+    }
+
+    .btn-cancel {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .btn-cancel:hover {
+        background-color: #bb2d3b;
+        color: white;
+    }
+
+    .btn-return {
+        background-color: #ffc107;
+        color: #000;
+    }
+    
+    .btn-return:hover {
+        background-color: #e0a800;
+        color: #000;
+    }
+</style>
+
+<div class="order-detail-container">
+    <div class="order-header">
+        <div class="order-info">
+            <div class="order-id">Order #{{ order.order_id }}</div>
+            <div class="order-date">Placed on {{ order.created_at|date:"F d, Y" }}</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <span class="order-status status-{{ order.status|lower }}">{{ order.status }}</span>
+            <a href="{% url 'user_profile:generate_invoice' order.order_id %}" class="btn-action" style="display: inline-block; background-color: #28a745; color: white;">
+                <i class="bi bi-file-earmark-pdf"></i> Download Invoice
+            </a>
+            {% if order.status == 'PENDING' or order.status == 'CONFIRMED' %}
+            <a href="{% url 'user_profile:cancel_order_page' order.order_id %}" class="btn-action btn-cancel" style="display: inline-block;">Cancel Order</a>
+            {% endif %}
+            {% if order.status == 'DELIVERED' and not order.return_requested %}
+            <a href="{% url 'user_profile:return_order' order.order_id %}" class="btn-action btn-return" style="display: inline-block; background-color: #ffc107; color: #000;">Return Order</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="order-grid">
+        <div class="order-items">
+            <h3 class="mb-4">Order Items</h3>
+            {% for item in order.items.all %}
+            <div class="order-item">
+                <img src="{{ item.product.cover_image.url }}" alt="{{ item.product.title }}" class="item-image">
+                <div class="item-details">
+                    <div class="item-title">{{ item.product.title }}</div>
+                    <div class="item-price">₹{{ item.price }} x {{ item.quantity }}</div>
+                </div>
+                <div class="item-total">
+                    ₹{{ item.total }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div>
+            <div class="order-summary">
+                <h3 class="mb-4">Order Summary</h3>
+                <div class="summary-row">
+                    <span class="summary-label">Subtotal</span>
+                    <span class="summary-value">₹{{ order.subtotal }}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Discount</span>
+                    <span class="summary-value text-danger">-₹{{ order.discount }}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Delivery Charge</span>
+                    <span class="summary-value">₹{{ order.delivery_charge }}</span>
+                </div>
+                <div class="summary-row total-row">
+                    <span>Total</span>
+                    <span>₹{{ order.total }}</span>
+                </div>
+            </div>
+
+            <div class="shipping-address">
+                <h3 class="address-title">Shipping Address</h3>
+                <div class="address-details">
+                    <p><strong>{{ order.address.full_name }}</strong></p>
+                    <p>{{ order.address.house_no }}</p>
+                    {% if order.address.landmark %}
+                    <p>{{ order.address.landmark }}</p>
+                    {% endif %}
+                    <p>{{ order.address.area }}</p>
+                    <p>{{ order.address.city }}, {{ order.address.state }}</p>
+                    <p>PIN: {{ order.address.pincode }}</p>
+                    <p>Phone: {{ order.address.phone_number }}</p>
+                </div>
+            </div>
+
+            {% if order.status == 'CANCELLED' and order.cancel_reason %}
+            <div class="reason-box">
+                <h3 class="reason-title">Cancellation Reason</h3>
+                <p class="reason-text">{{ order.cancel_reason }}</p>
+            </div>
+            {% endif %}
+
+            {% if order.status == 'RETURNED' and order.return_reason %}
+            <div class="reason-box">
+                <h3 class="reason-title">Return Reason</h3>
+                <p class="reason-text">{{ order.return_reason }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="timeline">
+        <h3 class="timeline-title">Order Timeline</h3>
+        {% for event in timeline %}
+        <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+                <div class="timeline-date">{{ event.date|date:"F d, Y H:i" }}</div>
+                <div class="timeline-text">{{ event.status }}</div>
+                {% if event.description %}
+                <div class="timeline-description">{{ event.description }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %} 

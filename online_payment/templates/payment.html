@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment - BookNest{% endblock %}
+
+{% block content %}
+<style>
+    .booknest-card {
+        border-radius: 12px;
+        overflow: hidden;
+        border: none;
+        box-shadow: 0 10px 20px rgba(139, 69, 19, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .booknest-card:hover {
+        box-shadow: 0 12px 24px rgba(139, 69, 19, 0.15);
+    }
+    
+    .card-header {
+        background-color: #f8f3e9 !important;
+        border-bottom: 2px solid rgba(139, 69, 19, 0.2);
+    }
+    
+    .booknest-title {
+        color: #8B4513;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+    
+    .booknest-btn {
+        background-color: #8B4513;
+        border: none;
+        border-radius: 30px;
+        padding: 12px 32px;
+        font-weight: 600;
+        box-shadow: 0 4px 8px rgba(139, 69, 19, 0.2);
+        transition: all 0.3s ease;
+    }
+    
+    .booknest-btn:hover {
+        background-color: #6b340f;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(139, 69, 19, 0.3);
+    }
+    
+    .booknest-heading {
+        color: #6b340f;
+        font-size: 18px;
+        font-weight: 600;
+        border-bottom: 2px solid #f0e6d9;
+        padding-bottom: 8px;
+        margin-bottom: 12px;
+    }
+    
+    .booknest-info-alert {
+        background-color: #f8f3e9;
+        border-left: 4px solid #8B4513;
+        color: #6b340f;
+        border-radius: 8px;
+    }
+    
+    .order-details-section {
+        background-color: #fcfaf7;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .payment-details p {
+        margin-bottom: 6px;
+    }
+    
+    .order-amount {
+        font-size: 22px;
+        font-weight: bold;
+        color: #8B4513;
+    }
+    
+    .payment-icon {
+        font-size: 24px;
+        margin-right: 10px;
+        color: #8B4513;
+    }
+</style>
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card booknest-card shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h3 class="mb-0 booknest-title">
+                        <i class="fas fa-shopping-bag me-2"></i>
+                        Complete Your Payment
+                    </h3>
+                </div>
+                <div class="card-body p-4">
+                    <div class="order-details-section mb-4">
+                        <div class="row">
+                            <div class="col-md-6 payment-details">
+                                <h5 class="booknest-heading">Order Details</h5>
+                                <p><strong>Order ID:</strong> <span class="text-secondary">{{ order.order_id }}</span></p>
+                                <p class="order-amount">₹{{ order.total }}</p>
+                            </div>
+                            <div class="col-md-6 payment-details">
+                                <h5 class="booknest-heading">Shipping Address</h5>
+                                <p><strong>{{ order.address.full_name }}</strong><br>
+                                   {{ order.address.house_no }}, {{ order.address.area }}<br>
+                                   {% if order.address.landmark %}{{ order.address.landmark }}<br>{% endif %}
+                                   {{ order.address.city }}, {{ order.address.state }} - {{ order.address.pincode }}<br>
+                                   <i class="fas fa-phone-alt me-1 text-muted"></i> {{ order.address.phone_number }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert booknest-info-alert py-3">
+                        <i class="fas fa-info-circle me-2"></i> You will be redirected to Razorpay to complete your payment securely.
+                    </div>
+                    
+                    <div class="text-center my-4">
+                        <button id="rzp-button" class="btn booknest-btn btn-lg">
+                            <i class="fas fa-credit-card me-2"></i> Pay Now ₹{{ order.total }}
+                        </button>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <small class="text-muted">
+                            <i class="fas fa-lock me-1"></i> Your payment is secured with SSL encryption
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var options = {
+            "key": "{{ razorpay_merchant_key }}",
+            "amount": "{{ razorpay_amount }}",
+            "currency": "{{ currency }}",
+            "name": "BookNest",
+            "description": "Order #{{ order.order_id }}",
+            "image": "https://your-logo-url.png", // Replace with your logo URL
+            "order_id": "{{ razorpay_order_id }}",
+            "handler": function (response) {
+                // On successful payment, submit the form with payment details
+                document.getElementById('razorpay_payment_id').value = response.razorpay_payment_id;
+                document.getElementById('razorpay_order_id').value = response.razorpay_order_id;
+                document.getElementById('razorpay_signature').value = response.razorpay_signature;
+                document.getElementById('razorpay-form').submit();
+            },
+            "prefill": {
+                "name": "{{ customer_name }}",
+                "email": "{{ customer_email }}",
+                "contact": "{{ customer_phone }}"
+            },
+            "notes": {
+                "order_id": "{{ order.order_id }}"
+            },
+            "theme": {
+                "color": "#8B4513"
+            }
+        };
+        
+        var rzp = new Razorpay(options);
+        
+        document.getElementById('rzp-button').onclick = function(e) {
+            rzp.open();
+            e.preventDefault();
+        }
+        
+        // Auto-open the payment modal
+        // Uncomment this if you want the payment modal to open automatically
+        // rzp.open();
+    });
+</script>
+
+<!-- Hidden form to submit payment details back to server -->
+<form id="razorpay-form" action="{{ callback_url }}" method="POST" style="display: none;">
+    {% csrf_token %}
+    <input type="hidden" name="razorpay_payment_id" id="razorpay_payment_id">
+    <input type="hidden" name="razorpay_order_id" id="razorpay_order_id">
+    <input type="hidden" name="razorpay_signature" id="razorpay_signature">
+</form>
+{% endblock %}

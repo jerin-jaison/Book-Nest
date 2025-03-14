@@ -1,0 +1,277 @@
+{% extends 'userProfile_demo.html' %}
+{% load static %}
+
+{% block profile_content %}
+<style>
+    .btn-custom {
+        background-color: #8B4513;
+        color: white;
+        padding: 8px 20px;
+        border: none;
+        border-radius: 25px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-custom:hover {
+        background-color: #6b3410;
+        transform: translateY(-2px);
+        color: white;
+    }
+    
+    .btn-custom-outline {
+        background-color: transparent;
+        color: #8B4513;
+        padding: 8px 20px;
+        border: 1px solid #8B4513;
+        border-radius: 25px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-custom-outline:hover {
+        background-color: #8B4513;
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .btn-custom-danger {
+        background-color: #dc3545;
+        color: white;
+        padding: 8px 20px;
+        border: none;
+        border-radius: 25px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-custom-danger:hover {
+        background-color: #bb2d3b;
+        transform: translateY(-2px);
+        color: white;
+    }
+    
+    /* Improved font styling */
+    .profile-name {
+        font-family: 'Poppins', sans-serif;
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin: 1.5rem 0 1rem;
+        color: #333;
+    }
+    
+    .profile-image-container {
+        padding: 1.5rem 0;
+    }
+    
+    .profile-image {
+        width: 180px;
+        height: 180px;
+        object-fit: cover;
+        border: 5px solid rgba(139, 69, 19, 0.1);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+    
+    .profile-label {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        color: #555;
+    }
+    
+    .profile-value {
+        font-family: 'Poppins', sans-serif;
+        color: #666;
+    }
+    
+    .card-title {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 1.25rem;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.75rem;
+        font-size: 0.875rem;
+    }
+</style>
+
+<div class="container py-5">
+    <div class="row">
+        <!-- Profile Information -->
+        <div class="col-lg-4">
+            <div class="card mb-4 h-100">
+                <div class="card-body text-center d-flex flex-column justify-content-center">
+                    <div class="profile-image-container">
+                    {% if account_details.profile_image %}
+                        <img src="{{ account_details.profile_image.url }}" alt="Profile Image" class="rounded-circle img-fluid mx-auto profile-image">
+                    {% else %}
+                        <img src="{% static 'images/default_profile.jpg' %}" alt="Default Profile" class="rounded-circle img-fluid mx-auto profile-image">
+                    {% endif %}
+                    </div>
+                    <h5 class="profile-name">{{ account_details.first_name }} {{ account_details.last_name }}</h5>
+                    <div class="d-flex justify-content-center mb-3 gap-2">
+                        <a href="{% url 'user_profile:edit_profile' %}" class="btn-custom">Edit Profile</a>
+                        <a href="{% url 'user_profile:change_password' %}" class="btn-custom-outline">Change Password</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Detailed Information -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-3"><p class="mb-0 profile-label">Full Name</p></div>
+                        <div class="col-sm-9"><p class="profile-value mb-0">{{ account_details.first_name }} {{ account_details.last_name }}</p></div>
+                    </div>
+                    <hr>
+                    <div class="row mb-3">
+                        <div class="col-sm-3"><p class="mb-0 profile-label">Email</p></div>
+                        <div class="col-sm-9">
+                            <p class="profile-value mb-0">
+                                {{ account_details.email }}
+                                {% if not account_details.email_verified %}
+                                    <span class="badge bg-warning">Unverified</span>
+                                    <a href="#" class="btn-custom-outline btn-sm ms-2" id="verifyEmailBtn">Verify Email</a>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row mb-3">
+                        <div class="col-sm-3"><p class="mb-0 profile-label">Phone</p></div>
+                        <div class="col-sm-9"><p class="profile-value mb-0">{{ account_details.phone }}</p></div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-sm-3"><p class="mb-0 profile-label">Address</p></div>
+                        <div class="col-sm-9"><p class="profile-value mb-0">{{ account_details.address }}</p></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orders Section -->
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Recent Orders</h5>
+                    {% if orders %}
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Order ID</th>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                        <th>Total</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for order in orders|slice:":3" %}
+                                    <tr>
+                                        <td>#{{ order.order_id }}</td>
+                                        <td>{{ order.created_at|date:"M d, Y" }}</td>
+                                        <td>
+                                            <span class="badge {% if order.status == 'PENDING' %}bg-warning
+                                                {% elif order.status == 'CONFIRMED' %}bg-info
+                                                {% elif order.status == 'SHIPPED' %}bg-primary
+                                                {% elif order.status == 'DELIVERED' %}bg-success
+                                                {% elif order.status == 'CANCELLED' %}bg-danger
+                                                {% elif order.status == 'RETURNED' %}bg-secondary
+                                                {% endif %}">
+                                                {{ order.status }}
+                                            </span>
+                                        </td>
+                                        <td>₹{{ order.total }}</td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="{% url 'user_profile:order_detail' order.order_id %}" class="btn-custom">View Details</a>
+                                                {% if order.status == 'PENDING' or order.status == 'CONFIRMED' %}
+                                                    <a href="{% url 'user_profile:cancel_order_page' order.order_id %}" class="btn-custom-danger ms-2">Cancel Order</a>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if orders.count > 3 %}
+                        <div class="text-end mt-3">
+                            <a href="{% url 'user_profile:orders_list' %}" class="btn-custom-outline">View All Orders ({{ orders.count }})</a>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center my-4">
+                            <p class="text-muted mb-3">No orders found.</p>
+                            <a href="{% url 'home_page' %}" class="btn-custom">Start Shopping</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if messages %}
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    {% for message in messages %}
+        <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header {% if message.tags %}bg-{{ message.tags }}{% endif %}">
+                <strong class="me-auto">Notification</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                {{ message }}
+            </div>
+        </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Email Verification Modal -->
+<div class="modal fade" id="verifyEmailModal" tabindex="-1" aria-labelledby="verifyEmailModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="verifyEmailModalLabel">Verify Your Email</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>We'll send a verification code to your email address: <strong>{{ account_details.email }}</strong></p>
+                <form id="sendVerificationForm" method="POST" action="{% url 'user_profile:edit_profile' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="email" value="{{ account_details.email }}">
+                    <input type="hidden" name="firstName" value="{{ account_details.first_name }}">
+                    <input type="hidden" name="lastName" value="{{ account_details.last_name }}">
+                    <input type="hidden" name="phone" value="{{ account_details.phone }}">
+                    <input type="hidden" name="address" value="{{ account_details.address }}">
+                    <input type="hidden" name="verify_email" value="true">
+                    <div class="d-grid gap-2 mt-3">
+                        <button type="submit" class="btn-custom">Send Verification Code</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Email verification modal
+        const verifyEmailBtn = document.getElementById('verifyEmailBtn');
+        if (verifyEmailBtn) {
+            verifyEmailBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const verifyEmailModal = new bootstrap.Modal(document.getElementById('verifyEmailModal'));
+                verifyEmailModal.show();
+            });
+        }
+    });
+</script>
+{% endblock %}

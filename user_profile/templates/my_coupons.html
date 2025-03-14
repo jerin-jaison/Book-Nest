@@ -1,0 +1,391 @@
+{% extends 'userProfile_demo.html' %}
+{% load static %}
+
+{% block title %}My Coupons & Referrals{% endblock %}
+
+{% block profile_content %}
+<style>
+    :root {
+        --primary-color: #8B4513;
+        --primary-hover: #6b3410;
+        --light-brown: #f5e6d3;
+        --bg-light: #fafafa;
+    }
+
+    .page-header {
+        background-color: var(--light-brown);
+        padding: 30px 0;
+        margin-bottom: 30px;
+    }
+
+    .page-title {
+        color: var(--primary-color);
+        font-weight: 600;
+        margin-bottom: 0;
+    }
+
+    .section-title {
+        color: var(--primary-color);
+        font-weight: 600;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid var(--light-brown);
+    }
+
+    .coupon-card {
+        border-radius: 10px;
+        border: 2px dashed #ddd;
+        padding: 20px;
+        margin-bottom: 20px;
+        position: relative;
+        transition: all 0.3s ease;
+        background-color: white;
+    }
+
+    .coupon-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+
+    .coupon-card::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: -10px;
+        width: 20px;
+        height: 20px;
+        background-color: #f8f9fa;
+        border-radius: 50%;
+        transform: translateY(-50%);
+    }
+
+    .coupon-card::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        right: -10px;
+        width: 20px;
+        height: 20px;
+        background-color: #f8f9fa;
+        border-radius: 50%;
+        transform: translateY(-50%);
+    }
+
+    .coupon-title {
+        color: var(--primary-color);
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+
+    .coupon-code {
+        background-color: var(--light-brown);
+        padding: 8px 15px;
+        border-radius: 5px;
+        font-weight: 600;
+        color: var(--primary-color);
+        letter-spacing: 1px;
+        display: inline-block;
+        margin-bottom: 10px;
+    }
+
+    .coupon-details {
+        margin-bottom: 15px;
+    }
+
+    .coupon-expiry {
+        color: #dc3545;
+        font-size: 0.9rem;
+    }
+
+    .referral-card {
+        background-color: white;
+        border-radius: 10px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .referral-code-box {
+        background-color: var(--light-brown);
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        position: relative;
+    }
+
+    .referral-code {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        letter-spacing: 2px;
+        text-align: center;
+    }
+
+    .copy-btn {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 5px 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .copy-btn:hover {
+        background-color: var(--primary-hover);
+    }
+
+    .referral-url-box {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        position: relative;
+        word-break: break-all;
+    }
+
+    .referral-url {
+        font-size: 0.9rem;
+        color: #666;
+    }
+
+    .btn-custom {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 10px 25px;
+        border: none;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-custom:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-2px);
+        color: white;
+    }
+
+    .referral-history {
+        margin-top: 30px;
+    }
+
+    .history-item {
+        padding: 15px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .history-item:last-child {
+        border-bottom: none;
+    }
+
+    .badge-success {
+        background-color: #d4edda;
+        color: #155724;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+
+    .badge-pending {
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+
+    .no-coupons {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .share-buttons {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    .share-btn {
+        padding: 8px 15px;
+        border-radius: 5px;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+
+    .share-btn:hover {
+        transform: translateY(-2px);
+        color: white;
+    }
+
+    .share-whatsapp {
+        background-color: #25D366;
+    }
+
+    .share-facebook {
+        background-color: #3b5998;
+    }
+
+    .share-twitter {
+        background-color: #1DA1F2;
+    }
+
+    .share-email {
+        background-color: #D44638;
+    }
+</style>
+
+<div class="page-header">
+    <div class="container">
+        <h1 class="page-title">My Coupons & Referrals</h1>
+    </div>
+</div>
+
+<div class="container mb-5">
+    <div class="row">
+        <div class="col-lg-8">
+            <h2 class="section-title">My Coupons</h2>
+            
+            {% if coupons %}
+                <div class="row">
+                    {% for coupon in coupons %}
+                    <div class="col-md-6">
+                        <div class="coupon-card">
+                            <h3 class="coupon-title">
+                                {% if coupon.discount_percentage %}
+                                    {{ coupon.discount_percentage }}% OFF
+                                {% else %}
+                                    ₹{{ coupon.discount_amount }} OFF
+                                {% endif %}
+                            </h3>
+                            <div class="coupon-code">{{ coupon.code }}</div>
+                            <div class="coupon-details">
+                                <p class="mb-1">Min. Purchase: ₹{{ coupon.min_purchase_amount }}</p>
+                                <p class="coupon-expiry">Expires on: {{ coupon.expiry_date|date:"d M, Y" }}</p>
+                            </div>
+                            <button class="btn btn-sm btn-custom" onclick="copyCouponCode('{{ coupon.code }}')">
+                                <i class="bi bi-clipboard"></i> Copy Code
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="no-coupons">
+                    <p class="mb-0">You don't have any active coupons yet.</p>
+                    <p>Refer friends to earn coupons!</p>
+                </div>
+            {% endif %}
+            
+            <h2 class="section-title mt-5">Referral History</h2>
+            
+            {% if referrals_made %}
+                <div class="referral-history">
+                    {% for referral in referrals_made %}
+                    <div class="history-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="mb-1"><strong>{{ referral.referred_user.get_full_name }}</strong> joined using your referral code</p>
+                                <small class="text-muted">{{ referral.created_at|date:"d M, Y" }}</small>
+                            </div>
+                            <div>
+                                {% if referral.reward_given %}
+                                <span class="badge badge-success">Rewarded</span>
+                                {% else %}
+                                <span class="badge badge-pending">Pending</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="no-coupons">
+                    <p class="mb-0">You haven't referred anyone yet.</p>
+                    <p>Share your referral code to earn rewards!</p>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="referral-card">
+                <h3 class="section-title">My Referral Code</h3>
+                
+                <p>Share your referral code with friends and earn rewards when they sign up!</p>
+                
+                {% if referral_offer %}
+                <div class="alert alert-info">
+                    <strong>Current Offer:</strong> 
+                    {% if referral_offer.discount_percentage %}
+                        {{ referral_offer.discount_percentage }}% OFF
+                    {% else %}
+                        ₹{{ referral_offer.discount_amount }} OFF
+                    {% endif %}
+                    on orders above ₹{{ referral_offer.min_purchase_amount }}
+                </div>
+                {% endif %}
+                
+                <div class="referral-code-box">
+                    <div class="referral-code">{{ referral_code.code }}</div>
+                    <button class="copy-btn" onclick="copyReferralCode()">
+                        <i class="bi bi-clipboard"></i>
+                    </button>
+                </div>
+                
+                <p class="mb-2">Or share this link:</p>
+                <div class="referral-url-box">
+                    <div class="referral-url">{{ referral_url }}</div>
+                    <button class="copy-btn" onclick="copyReferralUrl()">
+                        <i class="bi bi-clipboard"></i>
+                    </button>
+                </div>
+                
+                <!-- <p class="mb-2">Share via:</p>
+                <div class="share-buttons">
+                    <a href="https://wa.me/?text=Use my referral code {{ referral_code.code }} to sign up on BookNest and get amazing discounts! {{ referral_url }}" target="_blank" class="share-btn share-whatsapp">
+                        <i class="bi bi-whatsapp"></i> WhatsApp
+                    </a>
+                    <a href="https://www.facebook.com/sharer/sharer.php?u={{ referral_url|urlencode }}" target="_blank" class="share-btn share-facebook">
+                        <i class="bi bi-facebook"></i> Facebook
+                    </a>
+                    <a href="mailto:?subject=Join BookNest with my referral code&body=Use my referral code {{ referral_code.code }} to sign up on BookNest and get amazing discounts! {{ referral_url }}" class="share-btn share-email">
+                        <i class="bi bi-envelope"></i> Email
+                    </a>
+                </div> -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function copyReferralCode() {
+        const code = "{{ referral_code.code }}";
+        navigator.clipboard.writeText(code).then(() => {
+            alert('Referral code copied to clipboard!');
+        });
+    }
+    
+    function copyReferralUrl() {
+        const url = "{{ referral_url }}";
+        navigator.clipboard.writeText(url).then(() => {
+            alert('Referral URL copied to clipboard!');
+        });
+    }
+    
+    function copyCouponCode(code) {
+        navigator.clipboard.writeText(code).then(() => {
+            alert('Coupon code copied to clipboard!');
+        });
+    }
+</script>
+{% endblock profile_content %} 

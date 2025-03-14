@@ -1,0 +1,644 @@
+{% extends 'admin_sidebar.html' %}
+
+{% block content %}
+<style>
+    :root {
+        --primary-color: #8B4513;
+        --primary-hover: #6b3410;
+        --light-brown: #f5e6d3;
+        --bg-light: #fafafa;
+    }
+
+    .stats-card {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+
+    .table th {
+        background-color: var(--light-brown);
+        color: var(--primary-color);
+        font-weight: 600;
+        padding: 1rem;
+    }
+
+    .table td {
+        vertical-align: middle;
+        padding: 1rem;
+    }
+
+    .badge {
+        padding: 0.5em 1em;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+
+    .badge.bg-pending { background-color: #fff3cd !important; color: #856404; }
+    .badge.bg-shipped { background-color: #cce5ff !important; color: #004085; }
+    .badge.bg-delivered { background-color: #d4edda !important; color: #155724; }
+    .badge.bg-cancelled { background-color: #f8d7da !important; color: #721c24; }
+    .badge.bg-return-pending { background-color: #e2e3e5 !important; color: #383d41; }
+    .badge.bg-return-approved { background-color: #d1ecf1 !important; color: #0c5460; }
+
+    .btn-custom {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 8px 20px;
+        border: none;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-custom:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-2px);
+        color: white;
+    }
+
+    .btn-outline {
+        background-color: transparent;
+        color: var(--primary-color);
+        border: 2px solid var(--primary-color);
+        padding: 8px 20px;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-outline:hover {
+        background-color: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .search-input {
+        border-radius: 25px;
+        padding: 10px 20px;
+        border: 2px solid #dee2e6;
+        transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+        border-color: var(--primary-color);
+        box-shadow: none;
+    }
+
+    .filter-dropdown {
+        border-radius: 25px;
+        padding: 10px 20px;
+        border: 2px solid #dee2e6;
+    }
+
+    .order-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .order-image {
+        width: 50px;
+        height: 65px;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+
+    .pagination .page-item .page-link {
+        color: var(--primary-color);
+        border: none;
+        padding: 10px 15px;
+        margin: 0 5px;
+        border-radius: 25px;
+    }
+
+    .pagination .page-item.active .page-link {
+        background-color: var(--primary-color);
+        color: white;
+    }
+
+    .modal-content {
+        border-radius: 15px;
+        border: none;
+    }
+
+    .modal-header {
+        background-color: var(--light-brown);
+        border-radius: 15px 15px 0 0;
+    }
+
+    .modal-title {
+        color: var(--primary-color);
+    }
+
+    .btn-sm.btn-outline {
+        min-width: 90px;
+        text-align: center;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Header Section -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0" style="color: var(--primary-color);">
+            <i class="bi bi-cart me-2"></i>Order Management
+        </h2>
+        <div class="d-flex gap-2">
+            <button class="btn-outline" onclick="exportOrders()">
+                <i class="bi bi-download me-2"></i>Export Orders
+            </button>
+            <!-- <button class="btn-custom" data-bs-toggle="modal" data-bs-target="#inventoryModal">
+                <i class="bi bi-box me-2"></i>Manage Inventory
+            </button> -->
+        </div>
+    </div>
+
+    <!-- Search and Filter Section -->
+    <div class="card stats-card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <input type="text" class="form-control search-input" id="searchInput" 
+                               placeholder="Search by Order ID, Customer name...">
+                        <button class="btn btn-outline" type="button" onclick="clearSearch()">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select filter-dropdown" id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="shipped">Shipped</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="return-pending">Return Pending</option>
+                        <option value="return-approved">Return Approved</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select filter-dropdown" id="dateFilter">
+                        <option value="">Date Range</option>
+                        <option value="today">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select filter-dropdown" id="sortBy">
+                        <option value="date-desc">Date (Newest)</option>
+                        <option value="date-asc">Date (Oldest)</option>
+                        <option value="amount-desc">Amount (High-Low)</option>
+                        <option value="amount-asc">Amount (Low-High)</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-outline w-100" onclick="resetFilters()">
+                        Clear Filters
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Orders Table -->
+    <div class="card stats-card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Date</th>
+                            <th>Customer</th>
+                            <th>Items</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr>
+                            <td>#{{ order.order_id }}</td>
+                            <td>{{ order.created_at|date:"d M, Y" }}</td>
+                            <td>
+                                <div>
+                                    <div class="fw-medium">{{ order.user.get_full_name }}</div>
+                                    <small class="text-muted">{{ order.user.email }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="order-item">
+                                    {% if order.items.exists %}
+                                        <img src="{{ order.items.first.product.cover_image.url }}" 
+                                             alt="{{ order.items.first.product.title }}" 
+                                             class="order-image">
+                                        <div>
+                                            <div class="fw-medium">{{ order.items.first.product.title }}</div>
+                                            <small class="text-muted">{{ order.items.count }} item(s)</small>
+                                        </div>
+                                    {% else %}
+                                        <div>
+                                            <div class="fw-medium text-muted">No items</div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>₹{{ order.total }}</td>
+                            <td>
+                                <div class="dropdown">
+                                    <button class="badge bg-{{ order.status|lower }} dropdown-toggle border-0" 
+                                            type="button" data-bs-toggle="dropdown"
+                                            {% if order.status == 'CANCELLED' %}disabled{% endif %}>
+                                        {{ order.status }}
+                                    </button>
+                                    {% if order.status != 'CANCELLED' %}
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="#" 
+                                            onclick="updateStatus('{{ order.order_id }}', 'pending')">Pending</a></li>
+                                        <li><a class="dropdown-item" href="#" 
+                                            onclick="updateStatus('{{ order.order_id }}', 'shipped')">Shipped</a></li>
+                                        <li><a class="dropdown-item" href="#" 
+                                            onclick="updateStatus('{{ order.order_id }}', 'delivered')">Delivered</a></li>
+                                        <!-- <li><a class="dropdown-item" href="#" 
+                                            onclick="updateStatus('{{ order.order_id }}', 'cancelled')">Cancelled</a></li> -->
+                                        {% if order.return_requested %}
+                                        <li><a class="dropdown-item" href="#" 
+                                            onclick="updateStatus('{{ order.order_id }}', 'returned')">Returned</a></li>
+                                        {% endif %}
+                                    </ul>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline" 
+                                            onclick="viewOrderDetails('{{ order.order_id }}')">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                    {% if order.return_requested and order.status != 'RETURNED' %}
+                                    <button class="btn btn-sm btn-outline" 
+                                            onclick="processReturn('{{ order.order_id }}')">
+                                        <i class="bi bi-arrow-return-left"></i> Return
+                                    </button>
+                                    {% elif order.status == 'RETURNED' %}
+                                    <span class="badge bg-success">Return Processed</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <nav class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if orders.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1"><i class="bi bi-chevron-double-left"></i></a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ orders.previous_page_number }}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in orders.paginator.page_range %}
+                    {% if orders.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > orders.number|add:'-3' and num < orders.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+
+                    {% if orders.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ orders.next_page_number }}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ orders.paginator.num_pages }}">
+                            <i class="bi bi-chevron-double-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<!-- Order Details Modal -->
+<div class="modal fade" id="orderDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Order Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="orderDetailsContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Return Processing Modal -->
+<div class="modal fade" id="returnModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Process Return Request</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="returnForm">
+                    <div class="mb-3">
+                        <label class="form-label">Return Reason</label>
+                        <p id="returnReason" class="form-control-plaintext"></p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Product Condition</label>
+                        <select class="form-select" id="productCondition" required>
+                            <option value="">Select condition...</option>
+                            <option value="perfect">Perfect Condition</option>
+                            <option value="good">Good Condition</option>
+                            <option value="damaged">Damaged</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Verification Notes</label>
+                        <textarea class="form-control" id="verificationNotes" rows="3" required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-custom" onclick="approveReturn()">Approve Return</button>
+                <button type="button" class="btn btn-danger" onclick="rejectReturn()">Reject Return</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+    // Update Order Status
+    function updateStatus(orderId, newStatus) {
+        // Get the current status using a more compatible approach
+        let currentStatus = '';
+        const rows = document.querySelectorAll('tr');
+        for (const row of rows) {
+            if (row.textContent.includes('#' + orderId)) {
+                const statusBadge = row.querySelector('.badge');
+                if (statusBadge) {
+                    currentStatus = statusBadge.textContent.trim();
+                    break;
+                }
+            }
+        }
+        
+        // Prevent status changes for cancelled orders
+        if (currentStatus === 'CANCELLED') {
+            alert('Cannot change status of orders that have been cancelled by the user.');
+            return;
+        }
+        
+        const csrfToken = getCookie('csrftoken');
+        if (!csrfToken) {
+            console.error('CSRF token not found');
+            alert('Security token not found. Please refresh the page and try again.');
+            return;
+        }
+
+        console.log('Updating status:', { orderId, newStatus, csrfToken: 'token-exists' });
+        
+        fetch(`/admin_side/orders/${orderId}/status/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrfToken
+            },
+            body: `status=${newStatus.toUpperCase()}`
+        })
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                return response.text().then(text => {
+                    throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Response data:', data);
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + (data.message || 'Failed to update status'));
+            }
+        })
+        .catch(error => {
+            console.error('Error details:', error);
+            alert('Failed to update order status. Please check the console for details.');
+        });
+    }
+
+    // View Order Details
+    function viewOrderDetails(orderId) {
+        fetch(`/admin_side/orders/${orderId}/details/`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('orderDetailsContent').innerHTML = html;
+                new bootstrap.Modal(document.getElementById('orderDetailsModal')).show();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to load order details. Please try again.');
+            });
+    }
+
+    // Process Return
+    function processReturn(orderId) {
+        fetch(`/admin_side/orders/${orderId}/return-details/`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('returnReason').textContent = data.reason;
+                document.getElementById('returnForm').dataset.orderId = orderId;
+                new bootstrap.Modal(document.getElementById('returnModal')).show();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to load return details. Please try again.');
+            });
+    }
+
+    // Approve Return
+    function approveReturn() {
+        const orderId = document.getElementById('returnForm').dataset.orderId;
+        const condition = document.getElementById('productCondition').value;
+        const notes = document.getElementById('verificationNotes').value;
+
+        fetch(`/admin_side/orders/${orderId}/approve-return/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: `condition=${condition}&notes=${notes}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + (data.message || 'Failed to approve return'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to approve return. Please try again.');
+        });
+    }
+
+    // Reject Return
+    function rejectReturn() {
+        const orderId = document.getElementById('returnForm').dataset.orderId;
+        const notes = document.getElementById('verificationNotes').value;
+
+        fetch(`/admin_side/orders/${orderId}/reject-return/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: `notes=${notes}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + (data.message || 'Failed to reject return'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to reject return. Please try again.');
+        });
+    }
+
+    // Update Stock
+    function updateStock(productId) {
+        const newStock = prompt('Enter new stock quantity:');
+        if (newStock !== null) {
+            fetch(`/admin_side/products/${productId}/update-stock/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: `stock=${newStock}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to update stock'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update stock. Please try again.');
+            });
+        }
+    }
+
+    // Search and Filter Functions
+    function clearSearch() {
+        document.getElementById('searchInput').value = '';
+        applyFilters();
+    }
+
+    function resetFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('statusFilter').value = '';
+        document.getElementById('dateFilter').value = '';
+        document.getElementById('sortBy').value = 'date-desc';
+        applyFilters();
+    }
+
+    function applyFilters() {
+        const search = document.getElementById('searchInput').value;
+        const status = document.getElementById('statusFilter').value;
+        const date = document.getElementById('dateFilter').value;
+        const sort = document.getElementById('sortBy').value;
+
+        const params = new URLSearchParams({
+            search: search,
+            status: status,
+            date: date,
+            sort: sort
+        });
+
+        window.location.href = `?${params.toString()}`;
+    }
+
+    // Event Listeners
+    document.getElementById('searchInput').addEventListener('keyup', function(e) {
+        if (e.key === 'Enter') {
+            applyFilters();
+        }
+    });
+
+    ['statusFilter', 'dateFilter', 'sortBy'].forEach(id => {
+        document.getElementById(id).addEventListener('change', applyFilters);
+    });
+
+    // CSRF Token
+    function getCookie(name) {
+        // First try to get the token from the meta tag
+        const token = document.querySelector('meta[name="csrf-token"]');
+        if (token) {
+            return token.getAttribute('content');
+        }
+        
+        // Fallback to cookie parsing
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Export Orders
+    function exportOrders() {
+        const params = new URLSearchParams(window.location.search);
+        window.location.href = `/admin_side/orders/export/?${params.toString()}`;
+    }
+</script>
+{% endblock %} 

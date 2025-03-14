@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Invoice #{{ order.order_id }}</title>
+    <style>
+        @page {
+            size: a4 portrait;
+            margin: 1cm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #333;
+        }
+        .invoice-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .invoice-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .invoice-subtitle {
+            font-size: 14px;
+            color: #666;
+        }
+        .invoice-info {
+            margin-bottom: 20px;
+        }
+        .invoice-info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .invoice-info-label {
+            font-weight: bold;
+            width: 150px;
+        }
+        .invoice-info-value {
+            flex: 1;
+        }
+        .address-box {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .address-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .address-content {
+            color: #666;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .text-right {
+            text-align: right;
+        }
+        .summary-table {
+            width: 300px;
+            margin-left: auto;
+            margin-bottom: 30px;
+        }
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .summary-row.total {
+            font-weight: bold;
+            border-top: 2px solid #333;
+            border-bottom: none;
+            padding-top: 10px;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            color: #666;
+            font-size: 10px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .status-pending { background-color: #fff3cd; color: #856404; }
+        .status-confirmed { background-color: #cce5ff; color: #004085; }
+        .status-shipped { background-color: #d4edda; color: #155724; }
+        .status-delivered { background-color: #d1e7dd; color: #0f5132; }
+        .status-cancelled { background-color: #f8d7da; color: #721c24; }
+        .status-returned { background-color: #e2e3e5; color: #383d41; }
+    </style>
+</head>
+<body>
+    <div class="invoice-header">
+        <div class="invoice-title">INVOICE</div>
+        <div class="invoice-subtitle">BookNest Online Bookstore</div>
+    </div>
+
+    <div class="invoice-info">
+        <div class="invoice-info-row">
+            <div class="invoice-info-label">Invoice Number:</div>
+            <div class="invoice-info-value">INV-{{ order.order_id }}</div>
+        </div>
+        <div class="invoice-info-row">
+            <div class="invoice-info-label">Order Number:</div>
+            <div class="invoice-info-value">{{ order.order_id }}</div>
+        </div>
+        <div class="invoice-info-row">
+            <div class="invoice-info-label">Order Date:</div>
+            <div class="invoice-info-value">{{ order.created_at|date:"F d, Y H:i" }}</div>
+        </div>
+        <div class="invoice-info-row">
+            <div class="invoice-info-label">Invoice Date:</div>
+            <div class="invoice-info-value">{{ order.created_at|date:"F d, Y" }}</div>
+        </div>
+        <div class="invoice-info-row">
+            <div class="invoice-info-label">Status:</div>
+            <div class="invoice-info-value">
+                <span class="status-badge status-{{ order.status|lower }}">{{ order.status }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between;">
+        <div class="address-box" style="width: 45%;">
+            <div class="address-title">Billing Address</div>
+            <div class="address-content">
+                <p><strong>{{ order.address.full_name }}</strong></p>
+                <p>{{ order.address.house_no }}</p>
+                {% if order.address.landmark %}
+                <p>{{ order.address.landmark }}</p>
+                {% endif %}
+                <p>{{ order.address.area }}</p>
+                <p>{{ order.address.city }}, {{ order.address.state }}</p>
+                <p>PIN: {{ order.address.pincode }}</p>
+                <p>Phone: {{ order.address.phone_number }}</p>
+            </div>
+        </div>
+        <div class="address-box" style="width: 45%;">
+            <div class="address-title">Shipping Address</div>
+            <div class="address-content">
+                <p><strong>{{ order.address.full_name }}</strong></p>
+                <p>{{ order.address.house_no }}</p>
+                {% if order.address.landmark %}
+                <p>{{ order.address.landmark }}</p>
+                {% endif %}
+                <p>{{ order.address.area }}</p>
+                <p>{{ order.address.city }}, {{ order.address.state }}</p>
+                <p>PIN: {{ order.address.pincode }}</p>
+                <p>Phone: {{ order.address.phone_number }}</p>
+            </div>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Price</th>
+                <th>Quantity</th>
+                <th class="text-right">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in order.items.all %}
+            <tr>
+                <td>{{ item.product.title }}</td>
+                <td>₹{{ item.price }}</td>
+                <td>{{ item.quantity }}</td>
+                <td class="text-right">₹{{ item.total }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="summary-table">
+        <div class="summary-row">
+            <div>Subtotal</div>
+            <div>₹{{ order.subtotal }}</div>
+        </div>
+        <div class="summary-row">
+            <div>Discount</div>
+            <div>-₹{{ order.discount }}</div>
+        </div>
+        <div class="summary-row">
+            <div>Delivery Charge</div>
+            <div>₹{{ order.delivery_charge }}</div>
+        </div>
+        <div class="summary-row total">
+            <div>Total</div>
+            <div>₹{{ order.total }}</div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Thank you for shopping with BookNest!</p>
+        <p>For any questions or concerns, please contact our customer support at support@booknest.com</p>
+        <p>This is a computer-generated invoice and does not require a signature.</p>
+        <p>Invoice generated on: {{ order.created_at|date:"F d, Y H:i" }}</p>
+    </div>
+</body>
+</html> 

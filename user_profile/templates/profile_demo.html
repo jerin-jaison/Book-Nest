@@ -1,0 +1,175 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookNest - My Account</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Custom styles */
+        body {
+            font-family: Arial, sans-serif;
+        }
+        
+        .navbar-brand {
+            font-family: 'Times New Roman', Times, serif;
+            font-weight: bold;
+            font-size: 28px;
+            color: #6b4b00;
+        }
+        
+        .search-input {
+            background-color: #f2f2f2;
+            border-radius: 20px;
+            width: 500px;
+        }
+        
+        .nav-link {
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .sidebar {
+            background-color: #fff;
+            width: 250px;
+            min-height: calc(100vh - 70px);
+            padding: 20px 0;
+            border-right: 1px solid #eee;
+        }
+        
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: #555;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        
+        .sidebar-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .sidebar-item.active {
+            background-color: #f1f1f1;
+            font-weight: 500;
+        }
+        
+        .sidebar-item i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .account-heading {
+            font-size: 28px;
+            font-weight: bold;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .form-control {
+            padding: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .btn-dark {
+            border-radius: 30px;
+            padding: 8px 20px;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white py-3 shadow-sm">
+        <div class="container">
+            <a class="navbar-brand" href="{%url 'home_page' %}">BookNest</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Top Selling</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">New Arrivals</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'user_profile:wishlist' %}">Wishlist</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Contact</a>
+                    </li>
+                </ul>
+                <!-- <form class="d-flex mx-auto">
+                    <div class="input-group search-input">
+                        <input class="form-control border-0 bg-transparent" type="search" placeholder="Search for books..." aria-label="Search">
+                        <button class="btn bg-transparent" type="submit">
+                            <i class="fas fa-search text-secondary"></i>
+                        </button>
+                    </div>
+                </form> -->
+                <div class="ms-auto d-flex align-items-center">
+                    <a href="#" class="text-dark me-3">
+                        <i class="fas fa-shopping-cart fs-5"></i>
+                    </a>
+                    <a href="#" class="text-dark">
+                        <i class="fas fa-user fs-5"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content with Sidebar -->
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-auto p-0">
+                <div class="sidebar">
+                    <h2 class="account-heading">My Account</h2>
+                    <a href="#" class="sidebar-item">
+                        <i class="fas fa-shopping-cart"></i> Orders
+                    </a>
+                    <a href="{% url 'user_profile:wishlist' %}" class="sidebar-item">
+                        <i class="fas fa-heart"></i> Wishlist
+                    </a>
+                    <a href="#" class="sidebar-item">
+                        <i class="fas fa-truck"></i> Address
+                    </a>
+                    <a href="#" class="sidebar-item">
+                        <i class="fas fa-key"></i> Password
+                    </a>
+                    <a href="#" class="sidebar-item active">
+                        <i class="fas fa-user"></i> Account Detail
+                    </a>
+                    <a href="{%url 'signout' %}" class="sidebar-item">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Main Content Area -->
+            <div class="col py-4">
+                {% block content %}
+                <div class="container">
+                    <h3>Account Details</h3>
+                    <p>This is the main content area where you can display account information and forms.</p>
+                    <!-- Default content -->
+                </div>
+                {% endblock %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

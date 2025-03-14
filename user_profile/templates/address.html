@@ -1,0 +1,115 @@
+{% extends 'userProfile_demo.html' %}
+{% load static %}
+
+{% block profile_content %}
+<style>
+    .address-form {
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.03);
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-label {
+        font-weight: 500;
+        color: #333;
+        margin-bottom: 8px;
+    }
+    
+    .form-control {
+        border: 1px solid #e0e0e0;
+        padding: 10px 15px;
+        border-radius: 5px;
+        font-size: 14px;
+    }
+    
+    .form-control:focus {
+        border-color: #333;
+        box-shadow: none;
+    }
+    
+    .save-btn {
+        background-color: #000;
+        color: white;
+        padding: 12px 30px;
+        border: none;
+        border-radius: 5px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    .save-btn:hover {
+        background-color: #333;
+    }
+    
+    .page-title {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 25px;
+        color: #333;
+    }
+</style>
+
+<div class="address-form">
+    <h2 class="page-title">Address</h2>
+    
+    <form method="POST">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label class="form-label">Name</label>
+            <input type="text" class="form-control" name="name" value="{{ account_details.first_name }} {{ account_details.last_name }}" required>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">House name</label>
+            <input type="text" class="form-control" name="house_name" value="{{ account_details.house_name }}" required>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Landmark</label>
+            <input type="text" class="form-control" name="landmark" value="{{ account_details.landmark }}" required>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label class="form-label">City</label>
+                    <input type="text" class="form-control" name="city" value="{{ account_details.city }}" required>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label class="form-label">State</label>
+                    <input type="text" class="form-control" name="state" value="{{ account_details.state }}" required>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label class="form-label">Pin Code</label>
+                    <input type="text" class="form-control" name="pin_code" value="{{ account_details.pin_code }}" 
+                           pattern="[0-9]{6}" title="Please enter a valid 6-digit pin code" maxlength="6" required>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label class="form-label">Country</label>
+                    <input type="text" class="form-control" name="country" value="{{ account_details.country|default:'India' }}" required>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-4">
+            <button type="submit" class="save-btn">Save</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

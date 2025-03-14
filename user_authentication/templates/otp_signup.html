@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTP Verification</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .otp-container {
+            max-width: 400px;
+            width: 90%;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .otp-title {
+            color: #75530d;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2.5rem;
+        }
+        .btn-confirm {
+            background-color: #75530d;
+            border-color: #75530d;
+            color: white;
+            padding: 12px;
+            width: 100%;
+            font-size: 1rem;
+            border-radius: 25px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        .btn-confirm:hover {
+            background-color: #614408;
+            border-color: #614408;
+            color: white;
+            transform: translateY(-2px);
+        }
+        .btn-back {
+            border: 1px solid #75530d;
+            color: #75530d;
+            padding: 12px;
+            width: 100%;
+            font-size: 1rem;
+            border-radius: 25px;
+            background-color: transparent;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        .btn-back:hover {
+            background-color: #75530d;
+            color: white;
+        }
+        .otp-input {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .otp-input input {
+            width: 45px;
+            height: 45px;
+            text-align: center;
+            font-size: 1.2rem;
+            border: 2px solid #ced4da;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .otp-input input:focus {
+            border-color: #75530d;
+            box-shadow: 0 0 0 0.2rem rgba(117, 83, 13, 0.25);
+            outline: none;
+        }
+        .timer-container {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .timer {
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        .timer-icon {
+            color: #75530d;
+        }
+        .resend-link {
+            color: #75530d;
+            text-decoration: none;
+            cursor: pointer;
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 15px;
+            transition: all 0.3s ease;
+        }
+        .resend-link:not(.disabled):hover {
+            background-color: rgba(117, 83, 13, 0.1);
+        }
+        .resend-link.disabled {
+            color: #6c757d;
+            cursor: not-allowed;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="otp-container">
+        <h1 class="otp-title">Verify OTP</h1>
+        <p class="text-center mb-4">Enter the verification code we sent to your email</p>
+        
+        {% if messages %}
+            {% for message in messages %}
+                {% if message.tags == 'success' %}
+                    toastr.success("{{ message }}");
+                {% elif message.tags == 'error' %}
+                    toastr.error("{{ message }}");
+                {% elif message.tags == 'info' %}
+                    toastr.info("{{ message }}");
+                {% elif message.tags == 'warning' %}
+                    toastr.warning("{{ message }}");
+                {% else %}
+                    toastr.info("{{ message }}");
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+
+        <form id="otpForm" method="POST">
+            {% csrf_token %}
+            <div class="otp-input">
+                <input type="text" class="otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
+                <input type="text" class="otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
+                <input type="text" class="otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
+                <input type="text" class="otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
+                <input type="text" class="otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
+                <input type="text" class="otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
+            </div>
+            <!-- Hidden field to store the complete OTP -->
+            <input type="hidden" name="otp" id="otpValue">
+
+            <div class="timer-container">
+                <div class="timer" id="timer">
+                    <svg class="timer-icon" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z"/>
+                        <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/>
+                    </svg>
+                    <span id="countdown">05:00</span>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-confirm">
+                Verify OTP
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-right ms-2" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8z"/>
+                </svg>
+            </button>
+
+            <a href="{% url 'signup_page' %}" class="btn btn-back">
+                Back to Sign Up
+            </a>
+
+            <div class="text-center mt-3">
+                <a href="#" id="resendOtp" class="resend-link disabled" id="resendBtn">
+                    <svg width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise me-1" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                        <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                    </svg>
+                    Resend OTP
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Configure toastr
+        toastr.options = {
+            "closeButton": true,
+            "progressBar": true,
+            "positionClass": "toast-top-right",
+            "timeOut": "3000"
+        };
+
+        // Display Django messages with toastr
+        {% if messages %}
+            {% for message in messages %}
+                {% if message.tags == 'success' %}
+                    toastr.success("{{ message }}");
+                {% elif message.tags == 'error' %}
+                    toastr.error("{{ message }}");
+                {% elif message.tags == 'info' %}
+                    toastr.info("{{ message }}");
+                {% elif message.tags == 'warning' %}
+                    toastr.warning("{{ message }}");
+                {% else %}
+                    toastr.info("{{ message }}");
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+
+        // Setup CSRF token for AJAX requests
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        const csrftoken = getCookie('csrftoken');
+        
+        // Set up AJAX with CSRF token
+        $.ajaxSetup({
+            beforeSend: function(xhr, settings) {
+                if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                    xhr.setRequestHeader("X-CSRFToken", csrftoken);
+                }
+            }
+        });
+
+        let timeLeft = 30; // 5 minutes in seconds
+        const countdownEl = document.getElementById('countdown');
+        const resendBtn = document.getElementById('resendBtn');
+        const otpForm = document.getElementById('otpForm');
+        let timerInterval;
+
+        function updateTimer() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            countdownEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (timeLeft === 0) {
+                clearInterval(timerInterval);
+                resendBtn.classList.remove('disabled');
+            } else {
+                timeLeft--;
+            }
+        }
+
+        timerInterval = setInterval(updateTimer, 1000);
+
+        const otpDigits = document.querySelectorAll('.otp-digit');
+        
+        // Auto-focus next input when a digit is entered
+        otpDigits.forEach((input, index) => {
+            input.addEventListener('input', function() {
+                if (this.value.length === 1) {
+                    // Move to next input if available
+                    if (index < otpDigits.length - 1) {
+                        otpDigits[index + 1].focus();
+                    }
+                }
+                
+                // Update the hidden field with the combined OTP
+                updateOtpValue();
+            });
+            
+            // Handle backspace to go to previous input
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Backspace' && this.value.length === 0 && index > 0) {
+                    otpDigits[index - 1].focus();
+                }
+            });
+        });
+        
+        // Combine all digits into the hidden field
+        function updateOtpValue() {
+            let otp = '';
+            otpDigits.forEach(input => {
+                otp += input.value || '';
+            });
+            document.getElementById('otpValue').value = otp;
+        }
+        
+        // Ensure OTP is combined before form submission
+        otpForm.addEventListener('submit', function(e) {
+            updateOtpValue();
+            if (document.getElementById('otpValue').value.length !== 6) {
+                e.preventDefault();
+                toastr.error('Please enter all 6 digits of the OTP');
+            }
+        });
+        
+        // Focus the first input on page load
+        otpDigits[0].focus();
+
+        resendBtn.addEventListener('click', function(e) {
+            if (!this.classList.contains('disabled')) {
+                timeLeft = 30;
+                this.classList.add('disabled');
+                updateTimer();
+                timerInterval = setInterval(updateTimer, 1000);
+                
+                $.ajax({
+                    type: 'GET',
+                    url: '{% url "resend_otp" %}',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': csrftoken
+                    },
+                    success: function(response) {
+                        if (response.status === 'success') {
+                            toastr.success(response.message);
+                        } else {
+                            toastr.error(response.message);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        toastr.error('An error occurred while resending OTP.');
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

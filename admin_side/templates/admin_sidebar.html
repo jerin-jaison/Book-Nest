@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookNest Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            overflow-x: hidden;
+            background-color: #f8f9fa;
+        }
+
+        .wrapper {
+            display: flex;
+            width: 100%;
+            align-items: stretch;
+        }
+
+        .sidebar {
+            min-height: 100vh;
+            background-color: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            width: 250px;
+            transition: all 0.3s;
+            box-shadow: 3px 0 10px rgba(0,0,0,0.1);
+        }
+
+        .sidebar.collapsed {
+            margin-left: -250px;
+        }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            color: #8B4513;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .sidebar-header i {
+            font-size: 1.5rem;
+            margin-right: 0.5rem;
+        }
+
+        .nav-link {
+            color: #333;
+            padding: 0.8rem 1rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+        }
+
+        .nav-link i {
+            width: 25px;
+            margin-right: 10px;
+            text-align: center;
+        }
+
+        .nav-link:hover {
+            background-color: #e9ecef;
+        }
+
+        .nav-link.active {
+            background-color: #8B4513;
+            color: white;
+        }
+
+        .main-content {
+            width: calc(100% - 250px);
+            margin-left: 250px;
+            transition: all 0.3s;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .main-content.expanded {
+            width: 100%;
+            margin-left: 0;
+        }
+
+        .signout-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .btn-signout {
+            width: 100%;
+            text-align: left;
+            color: #dc3545;
+            padding: 0.8rem 1rem;
+            border-radius: 5px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .btn-signout:hover {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .navbar {
+            background-color: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 0.25rem 0.5rem;
+        }
+        
+        .navbar .container-fluid {
+            padding: 0;
+        }
+
+        #sidebarCollapse {
+            background-color: transparent;
+            border: none;
+            color: #8B4513;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            transition: all 0.3s;
+        }
+
+        #sidebarCollapse:hover {
+            color: #6b3410;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                margin-left: -250px;
+            }
+            .sidebar.active {
+                margin-left: 0;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .main-content.active {
+                margin-left: 250px;
+            }
+        }
+
+        .minimal-navbar {
+            min-height: auto;
+            height: 40px;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="wrapper">
+        <!-- Sidebar -->
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <i class="fas fa-book"></i>
+                <a href="{% url 'home_page' %}" style="text-decoration: none;">
+                <h3 class="mb-0" style="color: #8B4513;">BookNest</h3>
+                </a>
+            </div>
+            <div class="nav flex-column">
+                <a href="{% url 'admin_side:admin_home' %}" class="nav-link {% if request.path == '/admin_side/admin_home/' %}active{% endif %}">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a href="{% url 'admin_side:customer_management' %}" class="nav-link {% if request.path == '/admin_side/customer_management/' %}active{% endif %}">
+                    <i class="fas fa-users"></i> Customers
+                </a>
+                <a href="{% url 'admin_side:product_list' %}" class="nav-link {% if request.path == '/admin_side/products/' %}active{% endif %}">
+                    <i class="fas fa-book"></i> Products
+                </a>
+                <a href="{% url 'admin_side:category_management' %}" class="nav-link {% if request.path == '/admin_side/categories/' %}active{% endif %}">
+                    <i class="fas fa-list"></i> Categories
+                </a>
+                <a href="{% url 'admin_side:order_management' %}" class="nav-link {% if request.path == '/admin_side/orders/' %}active{% endif %}">
+                    <i class="fas fa-shopping-cart"></i> Orders
+                </a>
+                <a href="{% url 'admin_side:offer_management' %}" class="nav-link {% if '/offers/' in request.path and not '/referrals/' in request.path %}active{% endif %}">
+                    <i class="fas fa-gift"></i> Offers
+                </a>
+                <a href="{% url 'admin_side:referral_offer_list' %}" class="nav-link {% if request.resolver_match.url_name == 'referral_offer_list' %}active{% endif %}">
+                    <i class="fas fa-user-friends"></i> Referrals
+                </a>
+                <a href="{% url 'admin_side:referral_history' %}" class="nav-link {% if request.resolver_match.url_name == 'referral_history' %}active{% endif %}">
+                    <i class="fas fa-history"></i> Referral History
+                </a>
+                <a href="{% url 'admin_side:coupon_management' %}" class="nav-link {% if 'coupons' in request.path %}active{% endif %}">
+                    <i class="fas fa-ticket-alt"></i> Coupons
+                </a>
+            </div>
+            <div class="signout-container">
+                <a href="{% url 'admin_side:admin_logout' %}" class="btn-signout">
+                    <i class="fas fa-sign-out-alt me-2"></i> Logout
+                </a>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div id="content" class="main-content">
+            
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get sidebar and content elements
+            const sidebar = document.getElementById('sidebar');
+            const content = document.getElementById('content');
+            
+            // Always show sidebar and adjust content accordingly
+            sidebar.classList.remove('collapsed');
+            content.classList.remove('expanded');
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

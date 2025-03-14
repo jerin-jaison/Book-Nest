@@ -1,0 +1,44 @@
+{% if order.return_requested %}
+<div class="return-info">
+    <h4>Return Information</h4>
+    <div class="info-box">
+        <p><strong>Return Status:</strong> 
+            {% if order.status == 'RETURNED' %}
+                Returned
+            {% else %}
+                Return Requested
+            {% endif %}
+        </p>
+        <p><strong>Return Reason:</strong> {{ order.return_reason }}</p>
+        {% if order.return_details %}
+        <p><strong>Additional Details:</strong> {{ order.return_details }}</p>
+        {% endif %}
+        <p><strong>Requested On:</strong> {{ order.return_requested_at|date:"F d, Y" }}</p>
+    </div>
+</div>
+{% endif %}
+
+<style>
+    .return-info {
+        margin-top: 2rem;
+        padding: 1rem;
+        background-color: var(--bg-light);
+        border-radius: 10px;
+    }
+    .return-info h4 {
+        color: var(--primary-color);
+        margin-bottom: 1rem;
+    }
+    .info-box {
+        background-color: white;
+        padding: 1rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .info-box p {
+        margin-bottom: 0.5rem;
+    }
+    .info-box p:last-child {
+        margin-bottom: 0;
+    }
+</style> 

@@ -1,0 +1,193 @@
+{% extends 'admin_sidebar.html' %}
+
+{% block content %}
+<style>
+    :root {
+        --primary-color: #8B4513;
+        --primary-hover: #6b3410;
+        --light-brown: #f5e6d3;
+        --bg-light: #fafafa;
+    }
+
+    .form-card {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .form-label {
+        font-weight: 500;
+        color: #555;
+    }
+
+    .form-control, .form-select {
+        border-radius: 8px;
+        padding: 10px 15px;
+        border: 1px solid #ddd;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.25rem rgba(139, 69, 19, 0.25);
+    }
+
+    .btn-custom {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 10px 25px;
+        border: none;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-custom:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-2px);
+    }
+
+    .btn-outline {
+        background-color: transparent;
+        color: var(--primary-color);
+        border: 2px solid var(--primary-color);
+        padding: 10px 25px;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-outline:hover {
+        background-color: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .form-header {
+        background-color: var(--light-brown);
+        border-radius: 15px 15px 0 0;
+        padding: 20px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .form-body {
+        padding: 30px;
+    }
+
+    .form-title {
+        color: var(--primary-color);
+        font-weight: 600;
+        margin-bottom: 0;
+    }
+
+    .required-field::after {
+        content: "*";
+        color: red;
+        margin-left: 4px;
+    }
+</style>
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0" style="color: var(--primary-color);">
+            <i class="bi bi-tags me-2"></i>Add Product Offer
+        </h2>
+        <a href="{% url 'admin_side:product_offer_list' %}" class="btn-outline">
+            <i class="bi bi-arrow-left me-2"></i>Back to Offers
+        </a>
+    </div>
+
+    <div class="card form-card">
+        <div class="form-header">
+            <h4 class="form-title">Product Offer Details</h4>
+        </div>
+        <div class="form-body">
+            <form method="post" action="{% url 'admin_side:add_product_offer' %}">
+                {% csrf_token %}
+                
+                {% if messages %}
+                <div class="mb-4">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label for="product" class="form-label required-field">Select Product</label>
+                        <select class="form-select" id="product" name="product" required>
+                            <option value="">Select a product</option>
+                            {% for product in products %}
+                            <option value="{{ product.id }}">{{ product.title }} (₹{{ product.price }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="title" class="form-label required-field">Offer Title</label>
+                        <input type="text" class="form-control" id="title" name="title" required>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="description" class="form-label">Description</label>
+                    <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <label for="discount_percentage" class="form-label required-field">Discount Percentage</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="discount_percentage" name="discount_percentage" min="1" max="99" required>
+                            <span class="input-group-text">%</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="start_date" class="form-label required-field">Start Date</label>
+                        <input type="datetime-local" class="form-control" id="start_date" name="start_date" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="end_date" class="form-label required-field">End Date</label>
+                        <input type="datetime-local" class="form-control" id="end_date" name="end_date" required>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" checked>
+                        <label class="form-check-label" for="is_active">Active</label>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-end">
+                    <button type="button" class="btn btn-outline me-2" onclick="window.location.href='{% url 'admin_side:product_offer_list' %}'">Cancel</button>
+                    <button type="submit" class="btn btn-custom">Create Offer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Set default dates
+    document.addEventListener('DOMContentLoaded', function() {
+        const now = new Date();
+        const startDate = new Date(now);
+        const endDate = new Date(now);
+        endDate.setDate(endDate.getDate() + 30); // Default end date is 30 days from now
+        
+        // Format dates for datetime-local input
+        document.getElementById('start_date').value = formatDateForInput(startDate);
+        document.getElementById('end_date').value = formatDateForInput(endDate);
+    });
+    
+    function formatDateForInput(date) {
+        return date.getFullYear() + '-' + 
+               String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+               String(date.getDate()).padStart(2, '0') + 'T' + 
+               String(date.getHours()).padStart(2, '0') + ':' + 
+               String(date.getMinutes()).padStart(2, '0');
+    }
+</script>
+{% endblock %} 
