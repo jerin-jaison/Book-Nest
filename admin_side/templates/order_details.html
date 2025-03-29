@@ -43,6 +43,11 @@
     .status-delivered { background-color: #d1e7dd; color: #0f5132; }
     .status-cancelled { background-color: #f8d7da; color: #721c24; }
     .status-returned { background-color: #e2e3e5; color: #383d41; }
+    .status-return-requested { background-color: #ffd700; color: #000; }
+    .status-return-rejected { background-color: #f8d7da; color: #721c24; }
+    .status-partially-returned { background-color: #d1e7dd; color: #0f5132; }
+    .status-partial-return-requested { background-color: #ffd700; color: #000; }
+    .status-partial-return-rejected { background-color: #f8d7da; color: #721c24; }
 
     .order-grid {
         display: grid;
@@ -186,7 +191,15 @@
                 <div class="order-id">Order #{{ order.order_id }}</div>
                 <div class="order-date">{{ order.created_at|date:"F d, Y, g:i A" }}</div>
             </div>
-            <span class="order-status status-{{ order.status|lower }}">{{ order.status }}</span>
+            <span id="status-badge-{{ order.order_id }}" class="order-status {% if order.status == 'DELIVERED' and not order.return_requested and not order.notes %}status-delivered{% elif order.return_requested and order.status != 'RETURNED' %}status-return-requested{% elif order.status == 'RETURNED' %}status-returned{% elif order.status == 'RETURN_REJECTED' %}status-return-rejected{% else %}status-{{ order.status|lower }}{% endif %}">
+                {% if order.return_requested and order.status != 'RETURNED' %}
+                    Return Requested
+                {% elif order.status == 'RETURN_REJECTED' %}
+                    Return Request Rejected
+                {% else %}
+                    {{ order.status }}
+                {% endif %}
+            </span>
         </div>
 
         <div class="order-grid">
@@ -283,6 +296,42 @@
                     {% endif %}
                 </div>
                 {% endif %}
+                
+                {% if order.status == 'RETURNED' and order.payment_status == 'REFUNDED' %}
+                <div class="customer-info">
+                    <h3 class="info-title">Refund Information</h3>
+                    <div class="info-row">
+                        <span class="info-label">Amount:</span>
+                        <span>₹{{ order.total }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Status:</span>
+                        <span class="badge bg-success">Refunded to Wallet</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Date:</span>
+                        <span>{{ order.updated_at|date:"F d, Y, g:i A" }}</span>
+                    </div>
+                    <div class="mt-3">
+                        <a href="{% url 'admin_side:clean_order_refunds' order.order_id %}" class="btn btn-warning btn-sm">
+                            <i class="bi bi-tools"></i> Fix Duplicate Refunds
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if order.status == 'RETURN_REJECTED' %}
+                <div class="customer-info">
+                    <h3 class="info-title">Return Request Rejection</h3>
+                    <div class="info-row">
+                        <span class="info-label">Reason:</span>
+                        <span>{{ order.notes|slice:"22:" }}</span>
+                    </div>
+                    <div class="mt-2">
+                        <span class="badge bg-danger">Return Request Rejected</span>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -310,22 +359,26 @@
     }
 
     function rejectReturn(orderId) {
-        if (confirm('Are you sure you want to reject this return request?')) {
-            fetch(`/admin_side/orders/${orderId}/reject-return/`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': getCookie('csrftoken')
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Error: ' + data.message);
-                }
-            });
+        const notes = prompt('Please provide a reason for rejecting this return request:');
+        if (notes !== null) {
+            if (confirm('Are you sure you want to reject this return request?')) {
+                fetch(`/admin_side/orders/${orderId}/reject-return/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: `notes=${encodeURIComponent(notes)}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                });
+            }
         }
     }
 
@@ -343,5 +396,61 @@
         }
         return cookieValue;
     }
+    
+    // Function to check for mixed item statuses and update order status badge
+    function updateOrderStatusBadge() {
+        const orderId = "{{ order.order_id }}";
+        const items = [
+            {% for item in order.items.all %}
+            {
+                id: '{{ item.id }}',
+                status: '{{ item.status }}'
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        if (items.length <= 1) return; // Skip if only one item
+        
+        // Count items with each status
+        let totalItems = items.length;
+        let requestedCount = 0;
+        let rejectedCount = 0;
+        let returnedCount = 0;
+        
+        items.forEach(item => {
+            if (item.status === 'RETURN_REQUESTED') {
+                requestedCount++;
+            } else if (item.status === 'RETURN_REJECTED') {
+                rejectedCount++;
+            } else if (item.status === 'RETURNED') {
+                returnedCount++;
+            }
+        });
+        
+        // Only update if we have mixed statuses
+        if ((requestedCount > 0 || rejectedCount > 0 || returnedCount > 0) && 
+            (requestedCount < totalItems || rejectedCount < totalItems || returnedCount < totalItems)) {
+            
+            const statusBadge = document.getElementById(`status-badge-${orderId}`);
+            if (!statusBadge) return;
+            
+            // Determine the composite status based on priority
+            if (requestedCount > 0) {
+                statusBadge.textContent = (requestedCount === totalItems) ? 'Return Requested' : 'Partial Return Requested';
+                statusBadge.className = 'order-status status-partial-return-requested';
+            } else if (rejectedCount > 0) {
+                statusBadge.textContent = (rejectedCount === totalItems) ? 'Return Request Rejected' : 'Partial Return Rejected';
+                statusBadge.className = 'order-status status-partial-return-rejected';
+            } else if (returnedCount > 0) {
+                statusBadge.textContent = (returnedCount === totalItems) ? 'RETURNED' : 'Partially Returned';
+                statusBadge.className = 'order-status status-partially-returned';
+            }
+        }
+    }
+    
+    // Run on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateOrderStatusBadge();
+    });
 </script>
 {% endblock %} 

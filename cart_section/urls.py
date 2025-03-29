@@ -26,4 +26,10 @@ urlpatterns = [
     # Coupon URLs
     path('apply-coupon/', views.apply_coupon, name='apply_coupon'),
     path('remove-coupon/', views.remove_coupon, name='remove_coupon'),
+    
+    # Order retry payment URL
+    path('retry-payment/<str:order_id>/', views.retry_payment, name='retry_payment'),
+    
+    # Catch undefined checkout URLs and redirect to order_placed
+    path('checkout/<path:undefined_path>', views.handle_undefined_checkout, name='handle_undefined_checkout'),
 ]

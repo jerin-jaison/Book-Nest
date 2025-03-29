@@ -172,6 +172,95 @@
         </button>
     </div>
 
+    <!-- Filter Button -->
+    {% comment %} <div class="position-fixed" style="left: 20px; top: 50%; transform: translateY(-50%); z-index: 1000;">
+        <button class="btn btn-dark btn-lg rounded-circle shadow" type="button" data-bs-toggle="offcanvas" data-bs-target="#filterOffcanvas" aria-controls="filterOffcanvas" title="Filter Products">
+            <i class="fas fa-filter"></i>
+        </button>
+    </div> {% endcomment %}
+
+    <!-- Filter Offcanvas -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="filterOffcanvas" aria-labelledby="filterOffcanvasLabel" style="max-width: 350px;">
+        <div class="offcanvas-header border-bottom">
+            <h5 class="offcanvas-title" id="filterOffcanvasLabel">
+                <i class="fas fa-filter me-2"></i>Filter Products
+            </h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <form method="GET" action="{% url 'admin_side:product_list' %}" id="filterForm">
+                <!-- Search -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium">Search</label>
+                    <input type="text" class="form-control" name="search" value="{{ search_query }}" 
+                           placeholder="Search by title, author, or ISBN...">
+                </div>
+
+                <!-- Categories -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium">Category</label>
+                    <select class="form-select" name="category">
+                        <option value="">All Categories</option>
+                        {% for category in categories %}
+                        <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:"s" %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Status -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium">Status</label>
+                    <select class="form-select" name="status">
+                        <option value="">All Statuses</option>
+                        <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
+                        <option value="inactive" {% if selected_status == 'inactive' %}selected{% endif %}>Inactive</option>
+                        <option value="out_of_stock" {% if selected_status == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
+                        <option value="coming_soon" {% if selected_status == 'coming_soon' %}selected{% endif %}>Coming Soon</option>
+                    </select>
+                </div>
+
+                <!-- Price Range -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium">Price Range</label>
+                    <div class="row g-2">
+                        <div class="col">
+                            <input type="number" class="form-control" name="min_price" value="{{ min_price }}" 
+                                   placeholder="Min" min="0">
+                        </div>
+                        <div class="col">
+                            <input type="number" class="form-control" name="max_price" value="{{ max_price }}" 
+                                   placeholder="Max" min="0">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sort By -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium">Sort By</label>
+                    <select class="form-select" name="sort_by">
+                        <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Title (A-Z)</option>
+                        <option value="price_low" {% if sort_by == 'price_low' %}selected{% endif %}>Price: Low to High</option>
+                        <option value="price_high" {% if sort_by == 'price_high' %}selected{% endif %}>Price: High to Low</option>
+                        <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest First</option>
+                        <option value="stock_low" {% if sort_by == 'stock_low' %}selected{% endif %}>Stock: Low to High</option>
+                    </select>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        Apply Filters
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="resetFilters()">
+                        Reset Filters
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Alert Messages -->
     {% if messages %}
     {% for message in messages %}
@@ -486,6 +575,19 @@
                 }
             });
         }
+    }
+    
+    function resetFilters() {
+        const form = document.getElementById('filterForm');
+        const inputs = form.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            if (input.type === 'text' || input.type === 'number') {
+                input.value = '';
+            } else if (input.type === 'select-one') {
+                input.selectedIndex = 0;
+            }
+        });
+        form.submit();
     }
 </script>
 {% endblock %}

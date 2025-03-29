@@ -437,6 +437,15 @@
         border-color: var(--primary-brown);
         box-shadow: none;
     }
+
+    /* Coupon Discount Row Style */
+    #couponDiscountRow {
+        transition: all 0.3s ease;
+    }
+    
+    #couponDiscountRow[style*="display: none"] {
+        display: none !important;
+    }
 </style>
 {% endblock %}
 
@@ -447,25 +456,881 @@
 <!-- Add any page-specific JavaScript here -->
 <script>
 $(document).ready(function() {
-    // Add the showError function
-    function showError(message) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: message,
-            confirmButtonColor: '#8B4513'
+    // Check COD eligibility based on final total on page load
+    const finalTotal = parseFloat($('#totalAmount').text().replace('₹', ''));
+    console.log("Initial total on page load:", finalTotal);
+    
+    if (finalTotal > 5000) {
+        console.log("COD not available - total exceeds ₹5,000");
+        
+        // Disable COD option
+        const codPaymentRadio = document.getElementById('payment_cod');
+        if (codPaymentRadio) {
+            codPaymentRadio.disabled = true;
+            
+            // If COD is selected by default, switch to Razorpay
+            if (codPaymentRadio.checked) {
+                $('#payment_razorpay').prop('checked', true);
+                $('#selected_payment_method').val('RAZORPAY');
+                console.log("Switched from COD to Razorpay on page load");
+            }
+            
+            // Add badge to COD option
+            let codLabel = document.querySelector('label[for="payment_cod"]');
+            if (codLabel && !codLabel.querySelector('.badge')) {
+                codLabel.innerHTML += ' <span class="badge bg-warning text-dark ms-2">Not available for orders above ₹5,000</span>';
+            }
+        }
+    }
+    
+    // Get original total (before any coupons) for COD eligibility
+    const originalTotal = parseFloat('{{ subtotal }}') - parseFloat('{{ discount }}') + parseFloat('{{ delivery_charge }}');
+    console.log("Original total before any coupons:", originalTotal);
+    
+    // COD eligibility is based on original total, not on discounted total after coupon
+    if (originalTotal > 5000) {
+        console.log("Original total exceeds COD limit - disabling COD");
+        $('#payment_cod').prop('disabled', true);
+        $('#payment_cod').prop('checked', false);
+        
+        // Add the "not available" badge
+        let codLabel = $('label[for="payment_cod"]');
+        if (!codLabel.find('.badge').length) {
+            codLabel.append(' <span class="badge bg-warning text-dark ms-2">Not available for orders above ₹5,000</span>');
+        }
+        
+        // If current payment method is COD, switch to Razorpay
+        if ($('#selected_payment_method').val() === 'COD') {
+            $('#payment_razorpay').prop('checked', true);
+            $('#selected_payment_method').val('RAZORPAY');
+            // Notify user
+            try {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Payment Method Changed',
+                        text: 'Cash on Delivery is not available for orders above ₹5,000. Your payment method has been changed to online payment.',
+                        confirmButtonColor: '#8B4513'
+                    });
+                } else {
+                    console.log("SweetAlert not available, showing regular alert");
+                    alert('Cash on Delivery is not available for orders above ₹5,000. Your payment method has been changed to online payment.');
+                }
+            } catch (e) {
+                console.error("Error showing notification:", e);
+            }
+        }
+    } else {
+        console.log("Original total within COD limit - enabling COD");
+        $('#payment_cod').prop('disabled', false);
+        
+        // Remove badge if exists
+        $('label[for="payment_cod"] .badge').remove();
+    }
+    
+    // Check wallet balance and disable if insufficient
+    {% if wallet %}
+        const currentTotal = parseFloat('{{ total_amount }}');
+        const walletBalance = parseFloat('{{ wallet.balance }}');
+        if (walletBalance < currentTotal) {
+            $('#payment_wallet').prop('disabled', true);
+            
+            // Update wallet balance badge
+            let walletLabel = $('label[for="payment_wallet"]');
+            let badge = walletLabel.find('.badge');
+            if (badge.length) {
+                badge.removeClass('bg-success').addClass('bg-danger');
+            }
+            
+            // If wallet is currently selected payment method, switch to another
+            if ($('#selected_payment_method').val() === 'WALLET') {
+                if (!$('#payment_cod').prop('disabled')) {
+                    $('#payment_cod').prop('checked', true);
+                    $('#selected_payment_method').val('COD');
+                } else {
+                    $('#payment_razorpay').prop('checked', true);
+                    $('#selected_payment_method').val('RAZORPAY');
+                }
+            }
+        }
+    {% else %}
+        $('#payment_wallet').prop('disabled', true);
+    {% endif %}
+    
+    // Handle address selection
+    const addressCards = document.querySelectorAll('.address-card');
+    const selectedAddressIdInput = document.getElementById('selected_address_id');
+    
+    // Set initial selected address
+    const initialSelectedRadio = document.querySelector('input[name="selected_address"]:checked');
+    if (initialSelectedRadio) {
+        selectedAddressIdInput.value = initialSelectedRadio.value;
+    }
+    
+    addressCards.forEach(card => {
+        card.addEventListener('click', function(e) {
+            // Don't select the address if clicking on edit or delete buttons
+            if (e.target.closest('.address-actions')) {
+                return;
+            }
+            
+            // Find the radio input inside this card
+            const radio = this.querySelector('input[type="radio"]');
+            if (radio) {
+                // Uncheck all radios
+                document.querySelectorAll('input[name="selected_address"]').forEach(r => {
+                    r.checked = false;
+                    r.closest('.address-card').classList.remove('selected');
+                });
+                
+                // Check this radio
+                radio.checked = true;
+                this.classList.add('selected');
+                
+                // Update the hidden input for the form
+                selectedAddressIdInput.value = radio.value;
+            }
+        });
+    });
+
+    // Handle edit address buttons
+    const editAddressBtns = document.querySelectorAll('.edit-address-btn');
+    const editAddressModal = new bootstrap.Modal(document.getElementById('editAddressModal'));
+    const editAddressForm = document.getElementById('editAddressForm');
+    const editAddressFormError = document.getElementById('editAddressFormError');
+    const editAddressFormSuccess = document.getElementById('editAddressFormSuccess');
+    
+    editAddressBtns.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const addressId = this.getAttribute('data-address-id');
+            
+            // Reset form and alerts
+            editAddressForm.reset();
+            editAddressFormError.classList.add('d-none');
+            editAddressFormSuccess.classList.add('d-none');
+            
+            // Fetch address details
+            fetch(`{% url 'cart_section:get_address' 0 %}`.replace('0', addressId))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Populate form with address details
+                        document.getElementById('edit_address_id').value = data.address.id;
+                        document.getElementById('edit_full_name').value = data.address.full_name;
+                        document.getElementById('edit_phone_number').value = data.address.phone_number;
+                        document.getElementById('edit_pincode').value = data.address.pincode;
+                        document.getElementById('edit_house_no').value = data.address.house_no;
+                        document.getElementById('edit_area').value = data.address.area;
+                        document.getElementById('edit_landmark').value = data.address.landmark || '';
+                        document.getElementById('edit_city').value = data.address.city;
+                        document.getElementById('edit_state').value = data.address.state;
+                        document.getElementById('edit_is_default').checked = data.address.is_default;
+                        
+                        // Show modal
+                        editAddressModal.show();
+                    } else {
+                        alert(data.message || 'Error fetching address details');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error fetching address details. Please try again.');
+                });
+        });
+    });
+    
+    // Handle update address button
+    const updateAddressBtn = document.getElementById('updateAddressBtn');
+    if (updateAddressBtn) {
+        updateAddressBtn.addEventListener('click', function() {
+            // Reset alerts
+            editAddressFormError.classList.add('d-none');
+            editAddressFormSuccess.classList.add('d-none');
+            
+            // Form validation
+            if (!editAddressForm.checkValidity()) {
+                editAddressForm.reportValidity();
+                return;
+            }
+            
+            // Get address ID
+            const addressId = document.getElementById('edit_address_id').value;
+            
+            // Collect form data
+            const formData = new FormData(editAddressForm);
+            
+            // Send AJAX request
+            fetch(`{% url 'cart_section:update_address' 0 %}`.replace('0', addressId), {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Show success message
+                    editAddressFormSuccess.textContent = data.message;
+                    editAddressFormSuccess.classList.remove('d-none');
+                    
+                    // Close modal after a delay
+                    setTimeout(() => {
+                        editAddressModal.hide();
+                        
+                        // Reload the page to show the updated address
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    // Show error message
+                    editAddressFormError.textContent = data.message;
+                    editAddressFormError.classList.remove('d-none');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                editAddressFormError.textContent = 'An error occurred. Please try again.';
+                editAddressFormError.classList.remove('d-none');
+            });
+        });
+    }
+    
+    // Handle delete address buttons
+    const deleteAddressBtns = document.querySelectorAll('.delete-address-btn');
+    
+    deleteAddressBtns.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const addressId = this.getAttribute('data-address-id');
+            
+            if (confirm('Are you sure you want to delete this address?')) {
+                // Send AJAX request
+                fetch(`{% url 'cart_section:delete_address' 0 %}`.replace('0', addressId), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Show success message
+                        alert(data.message);
+                        
+                        // Reload the page to update the address list
+                        window.location.reload();
+                    } else {
+                        // Show error message with a more user-friendly approach
+                        if (data.message.includes('used in existing orders')) {
+                            // Create a Bootstrap modal for better user experience
+                            const modalHtml = `
+                                <div class="modal fade" id="addressErrorModal" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Cannot Delete Address</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>${data.message}</p>
+                                                <p>This address is linked to your order history. For record-keeping purposes, addresses used in completed orders cannot be deleted.</p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Understood</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            // Append modal to body
+                            const modalContainer = document.createElement('div');
+                            modalContainer.innerHTML = modalHtml;
+                            document.body.appendChild(modalContainer);
+                            
+                            // Show the modal
+                            const errorModal = new bootstrap.Modal(document.getElementById('addressErrorModal'));
+                            errorModal.show();
+                            
+                            // Remove modal from DOM after it's hidden
+                            document.getElementById('addressErrorModal').addEventListener('hidden.bs.modal', function() {
+                                this.remove();
+                            });
+                        } else {
+                            // For other errors, use a simple alert
+                            alert(data.message || 'Error deleting address');
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error deleting address. Please try again.');
+                });
+            }
+        });
+    });
+
+    // Add Address Form Handling
+    const addAddressForm = document.getElementById('addAddressForm');
+    const saveAddressBtn = document.getElementById('saveAddressBtn');
+    const addressFormError = document.getElementById('addressFormError');
+    const addressFormSuccess = document.getElementById('addressFormSuccess');
+
+    if (saveAddressBtn) {
+        saveAddressBtn.addEventListener('click', function() {
+            // Reset alerts
+            addressFormError.classList.add('d-none');
+            addressFormSuccess.classList.add('d-none');
+            
+            // Form validation
+            const form = document.getElementById('addAddressForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            // Collect form data
+            const formData = new FormData(addAddressForm);
+            
+            // Send AJAX request
+            fetch('{% url "cart_section:add_address" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Show success message
+                    addressFormSuccess.textContent = data.message;
+                    addressFormSuccess.classList.remove('d-none');
+                    
+                    // Reset form
+                    addAddressForm.reset();
+                    
+                    // Close modal after a delay
+                    setTimeout(() => {
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('addAddressModal'));
+                        modal.hide();
+                        
+                        // Reload the page to show the new address
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    // Show error message
+                    addressFormError.textContent = data.message;
+                    addressFormError.classList.remove('d-none');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                addressFormError.textContent = 'An error occurred. Please try again.';
+                addressFormError.classList.remove('d-none');
+            });
         });
     }
 
-    // Add the showSuccess function
-    function showSuccess(message) {
-        Swal.fire({
-            icon: 'success',
-            title: 'Success',
-            text: message,
-            confirmButtonColor: '#8B4513'
+    // Handle coupon selection from the list
+    document.querySelectorAll('.coupon-item').forEach(item => {
+        item.addEventListener('click', function() {
+            const couponCode = this.getAttribute('data-coupon-code');
+            
+            // Close the accordion
+            const accordionButton = document.querySelector('[data-bs-target="#availableCouponsCollapse"]');
+            const bsCollapse = bootstrap.Collapse.getInstance(document.getElementById('availableCouponsCollapse'));
+            if (bsCollapse) {
+                bsCollapse.hide();
+            }
+            
+            // Set the coupon code in the input field
+            const couponInput = document.getElementById('couponCode');
+            couponInput.value = couponCode;
+            
+            // Apply the coupon
+            applyCoupon(couponCode);
+        });
+    });
+    
+    // Handle coupon application
+    document.getElementById('applyCouponBtn')?.addEventListener('click', function() {
+        const couponCode = document.getElementById('couponCode').value.trim();
+        if (!couponCode) {
+            showCouponMessage('Please enter a coupon code', 'danger');
+            return;
+        }
+        
+        applyCoupon(couponCode);
+    });
+    
+    // Handle coupon removal
+    document.getElementById('removeCouponBtn')?.addEventListener('click', function() {
+        removeCoupon();
+    });
+    
+    function applyCoupon(couponCode) {
+        console.log("Applying coupon:", couponCode);
+        
+        // Get CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        // Send request to apply coupon
+        fetch('{% url "cart_section:apply_coupon" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrfToken
+            },
+            body: `coupon_code=${couponCode}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                console.log("Coupon applied successfully, new total:", data.new_total);
+                showCouponMessage(data.message, 'success');
+                
+                // Show coupon discount row
+                const couponDiscountRow = document.getElementById('couponDiscountRow');
+                couponDiscountRow.style.display = 'flex';
+                
+                // Update coupon discount amount
+                document.getElementById('couponDiscount').textContent = `-${data.discount_text}`;
+                
+                // Update total amount in UI
+                document.getElementById('totalAmount').textContent = `₹${data.new_total}`;
+                
+                // Store coupon code in hidden input
+                document.getElementById('hidden_coupon_code').value = couponCode;
+                
+                // Update UI to show remove button instead of apply button
+                updateCouponUI(true, couponCode);
+                
+                // Check if current payment method is COD but not eligible based on new total
+                const currentMethod = $('#selected_payment_method').val();
+                const newTotal = parseFloat(data.new_total);
+                
+                if (currentMethod === 'COD' && newTotal > 5000) {
+                    console.log("Switching from COD to Razorpay - new total exceeds limit");
+                    $('#payment_razorpay').prop('checked', true);
+                    $('#selected_payment_method').val('RAZORPAY');
+                    
+                    // Notify user about the change
+                    try {
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'info',
+                                title: 'Payment Method Changed',
+                                text: 'Cash on Delivery is not available for orders above ₹5,000. Your payment method has been changed to online payment.',
+                                confirmButtonColor: '#8B4513'
+                            });
+                        } else {
+                            console.log("SweetAlert not available, showing regular alert");
+                            alert('Cash on Delivery is not available for orders above ₹5,000. Your payment method has been changed to online payment.');
+                        }
+                    } catch (e) {
+                        console.error("Error showing notification:", e);
+                    }
+                }
+                
+                // Update wallet payment eligibility based on new total after coupon
+                updateWalletPaymentEligibility(newTotal);
+            } else {
+                console.log("Failed to apply coupon:", data.message);
+                showCouponMessage(data.message, 'danger');
+                
+                // If there was a previously applied coupon and an invalid one is entered,
+                // reset the UI to show the original total
+                if (document.getElementById('hidden_coupon_code').value) {
+                    // Remove any previously applied coupon
+                    removeCoupon();
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showCouponMessage('An error occurred while applying the coupon', 'danger');
         });
     }
+    
+    // Helper function to update just the wallet payment eligibility
+    function updateWalletPaymentEligibility(total) {
+        const walletPaymentRadio = document.getElementById('payment_wallet');
+        
+        {% if wallet %}
+        const walletBalance = parseFloat('{{ wallet.balance }}');
+        if (walletBalance < total) {
+            if (walletPaymentRadio.checked) {
+                // Switch to another payment method
+                if (!document.getElementById('payment_cod').disabled) {
+                    document.getElementById('payment_cod').checked = true;
+                    $('#selected_payment_method').val('COD');
+                } else {
+                    document.getElementById('payment_razorpay').checked = true;
+                    $('#selected_payment_method').val('RAZORPAY');
+                }
+            }
+            
+            walletPaymentRadio.disabled = true;
+            walletPaymentRadio.checked = false;
+            
+            // Update wallet balance badge
+            let walletLabel = document.querySelector('label[for="payment_wallet"]');
+            let badge = walletLabel.querySelector('.badge');
+            if (badge) {
+                badge.className = 'badge bg-danger ms-2';
+                badge.textContent = 'Available: ₹' + walletBalance;
+            }
+        } else {
+            walletPaymentRadio.disabled = false;
+            
+            // Update wallet balance badge
+            let walletLabel = document.querySelector('label[for="payment_wallet"]');
+            let badge = walletLabel.querySelector('.badge');
+            if (badge) {
+                badge.className = 'badge bg-success ms-2';
+                badge.textContent = 'Available: ₹' + walletBalance;
+            }
+        }
+        {% endif %}
+    }
+    
+    function removeCoupon() {
+        console.log("Removing coupon");
+        
+        // Get CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        // Get original total (before any coupons)
+        const originalTotal = parseFloat('{{ subtotal }}') - parseFloat('{{ discount }}') + parseFloat('{{ delivery_charge }}');
+        console.log("Original total (before any coupons):", originalTotal);
+        
+        // Send request to remove coupon
+        fetch('{% url "cart_section:remove_coupon" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                console.log("Coupon removed successfully, new total:", data.new_total);
+                showCouponMessage(data.message, 'info');
+                
+                // Hide coupon discount row
+                const couponDiscountRow = document.getElementById('couponDiscountRow');
+                couponDiscountRow.style.display = 'none';
+                
+                // Update total amount
+                document.getElementById('totalAmount').textContent = `₹${data.new_total}`;
+                
+                // Clear coupon code in hidden input
+                document.getElementById('hidden_coupon_code').value = '';
+                
+                // Update UI to show apply button instead of remove button
+                updateCouponUI(false);
+                
+                // Update wallet payment eligibility based on new total
+                const newTotal = parseFloat(data.new_total);
+                updateWalletPaymentEligibility(newTotal);
+                
+                // If new total is below 5000, COD should be available
+                if (newTotal <= 5000) {
+                    const codPaymentRadio = document.getElementById('payment_cod');
+                    if (codPaymentRadio.disabled) {
+                        console.log("COD should be available based on new total");
+                        // Enable COD radio button
+                        codPaymentRadio.disabled = false;
+                        
+                        // Remove any "not available" badge
+                        let codLabel = document.querySelector('label[for="payment_cod"]');
+                        let badge = codLabel.querySelector('.badge');
+                        if (badge) {
+                            badge.remove();
+                        }
+                    }
+                } else {
+                    // New total exceeds COD limit, ensure COD is disabled
+                    console.log("New total exceeds COD limit, ensuring COD is disabled");
+                    const codPaymentRadio = document.getElementById('payment_cod');
+                    codPaymentRadio.disabled = true;
+                    
+                    // If currently selected payment is COD, switch to another method
+                    if (codPaymentRadio.checked) {
+                        // Try wallet first, then Razorpay
+                        const walletPaymentRadio = document.getElementById('payment_wallet');
+                        if (!walletPaymentRadio.disabled) {
+                            walletPaymentRadio.checked = true;
+                            document.getElementById('selected_payment_method').value = 'WALLET';
+                            console.log("Switched to WALLET payment after removing coupon");
+                        } else {
+                            document.getElementById('payment_razorpay').checked = true;
+                            document.getElementById('selected_payment_method').value = 'RAZORPAY';
+                            console.log("Switched to RAZORPAY payment after removing coupon");
+                        }
+                        
+                        // Notify user
+                        try {
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    icon: 'info',
+                                    title: 'Payment Method Changed',
+                                    text: 'Cash on Delivery is not available for orders above ₹5,000. Your payment method has been updated.',
+                                    confirmButtonColor: '#8B4513'
+                                });
+                            } else {
+                                alert('Cash on Delivery is not available for orders above ₹5,000. Your payment method has been updated.');
+                            }
+                        } catch (e) {
+                            console.error("Error showing notification:", e);
+                        }
+                    }
+                }
+            } else {
+                console.log("Failed to remove coupon:", data.message);
+                showCouponMessage(data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showCouponMessage('An error occurred while removing the coupon', 'danger');
+        });
+    }
+    
+    function updateCouponUI(isApplied, couponCode = '') {
+        const couponInput = document.getElementById('couponCode');
+        const couponButtonContainer = couponInput.nextElementSibling;
+        
+        if (isApplied) {
+            // Update input
+            couponInput.value = couponCode;
+            couponInput.disabled = true;
+            
+            // Replace apply button with remove button
+            couponButtonContainer.outerHTML = '<button class="btn btn-outline-danger" type="button" id="removeCouponBtn">Remove</button>';
+            
+            // Add event listener to the new remove button
+            document.getElementById('removeCouponBtn').addEventListener('click', function() {
+                removeCoupon();
+            });
+        } else {
+            // Update input
+            couponInput.value = '';
+            couponInput.disabled = false;
+            
+            // Replace remove button with apply button
+            couponButtonContainer.outerHTML = '<button class="btn btn-outline-secondary" type="button" id="applyCouponBtn">Apply</button>';
+            
+            // Add event listener to the new apply button
+            document.getElementById('applyCouponBtn').addEventListener('click', function() {
+                const couponCode = document.getElementById('couponCode').value.trim();
+                if (!couponCode) {
+                    showCouponMessage('Please enter a coupon code', 'danger');
+                    return;
+                }
+                
+                applyCoupon(couponCode);
+            });
+        }
+    }
+    
+    // Function to update payment methods based on total
+    function updatePaymentMethodsForTotal(total) {
+        console.log("Updating payment methods for total:", total);
+        const codPaymentRadio = document.getElementById('payment_cod');
+        const walletPaymentRadio = document.getElementById('payment_wallet');
+        const razorpayPaymentRadio = document.getElementById('payment_razorpay');
+        const currentSelectedMethod = document.getElementById('selected_payment_method').value;
+        let needToSwitchPayment = false;
+        
+        // Check whether to use original total or post-coupon total for COD eligibility
+        const originalTotal = parseFloat('{{ subtotal }}') - parseFloat('{{ discount }}') + parseFloat('{{ delivery_charge }}');
+        console.log("Original total (before any coupons):", originalTotal);
+        
+        // Use original total for COD limit check (before coupon)
+        // Per business rule, COD eligibility is based on order value before coupon discount
+        const totalForCodCheck = originalTotal;
+        console.log("Total for COD eligibility check:", totalForCodCheck);
+        
+        // Check if COD is available for the order
+        if (totalForCodCheck > 5000) {
+            console.log("Original total exceeds COD limit, disabling COD");
+            if (codPaymentRadio.checked || currentSelectedMethod === 'COD') {
+                needToSwitchPayment = true;
+            }
+            
+            codPaymentRadio.disabled = true;
+            codPaymentRadio.checked = false;
+            
+            // Add or update the "not available" badge
+            let codLabel = document.querySelector('label[for="payment_cod"]');
+            let badge = codLabel.querySelector('.badge');
+            if (!badge) {
+                codLabel.innerHTML += ' <span class="badge bg-warning text-dark ms-2">Not available for orders above ₹5,000</span>';
+            }
+        } else {
+            console.log("Original total within COD limit, enabling COD");
+            codPaymentRadio.disabled = false;
+            
+            // Remove the "not available" badge if it exists
+            let codLabel = document.querySelector('label[for="payment_cod"]');
+            let badge = codLabel.querySelector('.badge');
+            if (badge) {
+                badge.remove();
+            }
+        }
+        
+        // Check if wallet payment is available
+        {% if wallet %}
+        const walletBalance = parseFloat('{{ wallet.balance }}');
+        if (walletBalance < total) {
+            if (walletPaymentRadio.checked || currentSelectedMethod === 'WALLET') {
+                needToSwitchPayment = true;
+            }
+            
+            walletPaymentRadio.disabled = true;
+            walletPaymentRadio.checked = false;
+            
+            // Update wallet balance badge
+            let walletLabel = document.querySelector('label[for="payment_wallet"]');
+            let badge = walletLabel.querySelector('.badge');
+            if (badge) {
+                badge.className = 'badge bg-danger ms-2';
+                badge.textContent = 'Available: ₹' + walletBalance;
+            }
+        } else {
+            walletPaymentRadio.disabled = false;
+            
+            // Update wallet balance badge
+            let walletLabel = document.querySelector('label[for="payment_wallet"]');
+            let badge = walletLabel.querySelector('.badge');
+            if (badge) {
+                badge.className = 'badge bg-success ms-2';
+                badge.textContent = 'Available: ₹' + walletBalance;
+            }
+        }
+        {% endif %}
+        
+        // If we need to switch payment method
+        if (needToSwitchPayment) {
+            console.log("Need to switch payment method from", currentSelectedMethod);
+            let selectedNewMethod = false;
+            
+            // First try to use wallet if available
+            if (!walletPaymentRadio.disabled) {
+                walletPaymentRadio.checked = true;
+                document.getElementById('selected_payment_method').value = 'WALLET';
+                selectedNewMethod = true;
+                console.log("Switched to WALLET payment");
+            } 
+            // Then try COD if available
+            else if (!codPaymentRadio.disabled) {
+                codPaymentRadio.checked = true;
+                document.getElementById('selected_payment_method').value = 'COD';
+                selectedNewMethod = true;
+                console.log("Switched to COD payment");
+            } 
+            // Default to Razorpay
+            else {
+                razorpayPaymentRadio.checked = true;
+                document.getElementById('selected_payment_method').value = 'RAZORPAY';
+                selectedNewMethod = true;
+                console.log("Switched to RAZORPAY payment");
+            }
+            
+            // Show notification about payment method change
+            if (selectedNewMethod) {
+                try {
+                    if (typeof Swal !== 'undefined') {
+                        let message = '';
+                        if (currentSelectedMethod === 'COD') {
+                            message = 'Cash on Delivery is not available for orders above ₹5,000.';
+                        } else if (currentSelectedMethod === 'WALLET') {
+                            message = 'Your wallet balance is insufficient for this order.';
+                        } else {
+                            message = 'Your payment method has been updated due to eligibility changes.';
+                        }
+                        
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Payment Method Changed',
+                            text: message + ' Your payment method has been updated.',
+                            confirmButtonColor: '#8B4513'
+                        });
+                    } else {
+                        console.log("SweetAlert not available, showing regular alert");
+                        let message = (currentSelectedMethod === 'COD') 
+                            ? 'Cash on Delivery is not available for orders above ₹5,000.'
+                            : (currentSelectedMethod === 'WALLET')
+                            ? 'Your wallet balance is insufficient for this order.'
+                            : 'Your payment method has been updated due to eligibility changes.';
+                        
+                        alert(message + ' Your payment method has been updated.');
+                    }
+                } catch (e) {
+                    console.error("Error showing notification:", e);
+                }
+            }
+        }
+    }
+    
+    function showCouponMessage(message, type) {
+        const messageElement = document.getElementById('couponMessage');
+        messageElement.innerHTML = `<div class="alert alert-${type} py-2 px-3">${message}</div>`;
+        
+        // Clear message after 5 seconds
+        setTimeout(() => {
+            messageElement.innerHTML = '';
+        }, 5000);
+    }
+
+    function showError(message) {
+        showCouponMessage(message, 'danger');
+    }
+
+    // Handle payment method selection
+    $('input[name="payment_method"]').on('change', function() {
+        const paymentMethod = $(this).val();
+        // Get final total amount (including coupon discount)
+        const finalTotal = parseFloat($('#totalAmount').text().replace('₹', ''));
+        
+        console.log("Payment method changed to:", paymentMethod);
+        console.log("Final total (after all discounts):", finalTotal);
+        
+        if (paymentMethod === 'COD' && finalTotal > 5000) {
+            console.log("COD selected but final total exceeds ₹5,000 limit");
+            // Show error message
+            try {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Cash on Delivery not available',
+                        text: 'COD is not available for orders above ₹5,000. Please choose online payment.',
+                        confirmButtonColor: '#8B4513'
+                    });
+                } else {
+                    alert('COD is not available for orders above ₹5,000. Please choose online payment.');
+                }
+            } catch (e) {
+                console.error("Error showing notification:", e);
+                alert('COD is not available for orders above ₹5,000. Please choose online payment.');
+            }
+            
+            // Switch back to online payment
+            $('#payment_razorpay').prop('checked', true);
+            $('#selected_payment_method').val('RAZORPAY');
+        } else {
+            console.log("Payment method set to:", paymentMethod);
+            $('#selected_payment_method').val(paymentMethod);
+        }
+    });
 
     // Handle order form submission
     const orderForm = document.getElementById('orderForm');
@@ -481,108 +1346,227 @@ $(document).ready(function() {
                 return;
             }
             
-            // Check COD limit
-            const totalAmount = parseFloat($('#totalAmount').text().replace('₹', '').trim());
+            // Get final total amount (including coupon discount)
+            const finalTotal = parseFloat($('#totalAmount').text().replace('₹', ''));
             const paymentMethod = $('input[name="payment_method"]:checked').val();
             
-            if (paymentMethod === 'COD' && totalAmount > 5000) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Cash on Delivery not available',
-                    text: 'COD is not available for orders above ₹5,000. Please choose online payment.',
-                    confirmButtonColor: '#8B4513'
-                });
+            // Check if COD is available based on final order value
+            if (paymentMethod === 'COD' && finalTotal > 5000) {
+                try {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Cash on Delivery not available',
+                            text: 'COD is not available for orders above ₹5,000. Please choose online payment.',
+                            confirmButtonColor: '#8B4513'
+                        });
+                    } else {
+                        alert('COD is not available for orders above ₹5,000. Please choose online payment.');
+                    }
+                } catch (e) {
+                    console.error("Error showing notification:", e);
+                    alert('COD is not available for orders above ₹5,000. Please choose online payment.');
+                }
                 return;
             }
             
-            // Set selected address in hidden field
-            $('#selected_address_id').val(selectedAddressId);
+            // Submit the form with AJAX to handle different payment methods properly
+            const formData = new FormData(orderForm);
             
-            // Set coupon code in hidden field
-            $('#hidden_coupon_code').val($('#couponCode').val());
+            // Show loading indicator
+            const submitBtn = orderForm.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+            submitBtn.disabled = true;
             
-            // Set payment method
-            $('#selected_payment_method').val(paymentMethod);
-            
-            // Show loading state
-            const submitButton = $(this).find('button[type="submit"]');
-            const originalText = submitButton.text();
-            submitButton.prop('disabled', true).text('Processing...');
-            
-            // Submit form
-            const formData = $(this).serialize();
-            
-            $.ajax({
-                url: "{% url 'cart_section:place_order' %}",
-                type: 'POST',
-                data: formData,
-                success: function(response) {
-                    if (response.status === 'success') {
-                        if (paymentMethod === 'COD') {
-                            // Show success message for COD orders
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Order Placed Successfully',
-                                text: response.message,
-                                confirmButtonColor: '#8B4513'
-                            }).then(() => {
-                                // Redirect to order placed page
-                                window.location.href = '/cart_section/order_placed/';
-                            });
+            fetch(orderForm.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log("Order placement response:", data);
+                
+                if (data.status === 'success') {
+                    // Handle different payment methods
+                    if (paymentMethod === 'RAZORPAY') {
+                        // For Razorpay, redirect to payment page
+                        if (data.redirect_url) {
+                            console.log("Redirecting to payment page:", data.redirect_url);
+                            window.location.href = data.redirect_url;
                         } else {
-                            // For online payment, redirect to payment gateway
-                            window.location.href = response.redirect_url;
+                            // Store order ID for fallback
+                            if (data.order_id) {
+                                localStorage.setItem('current_order_id', data.order_id);
+                            }
+                            console.log("No redirect URL provided, going to order placed page");
+                            window.location.href = '/cart_section/order_placed/';
                         }
                     } else {
-                        // Show error message
+                        // For COD and Wallet, go to order placed page
+                        console.log("Order placed successfully with " + paymentMethod + ", going to order placed page");
+                        window.location.href = '/cart_section/order_placed/';
+                    }
+                } else if (data.status === 'error') {
+                    // Show error message
+                    submitBtn.innerHTML = originalBtnText;
+                    submitBtn.disabled = false;
+                    
+                    try {
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Order Placement Failed',
+                                text: data.message || 'There was an error processing your order. Please try again.',
+                                confirmButtonColor: '#8B4513'
+                            });
+                        } else {
+                            alert(data.message || 'There was an error processing your order. Please try again.');
+                        }
+                    } catch (e) {
+                        console.error("Error showing notification:", e);
+                        alert(data.message || 'There was an error processing your order. Please try again.');
+                        }
+                    } else {
+                    // Unexpected response
+                    submitBtn.innerHTML = originalBtnText;
+                    submitBtn.disabled = false;
+                    
+                    console.error("Unexpected response:", data);
+                    try {
+                        if (typeof Swal !== 'undefined') {
                         Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: response.message || 'An error occurred',
+                                icon: 'warning',
+                                title: 'Unexpected Response',
+                                text: 'There was an unexpected response from the server. Please try again or contact support.',
                             confirmButtonColor: '#8B4513'
                         });
-                        submitButton.prop('disabled', false).text(originalText);
+                        } else {
+                            alert('There was an unexpected response from the server. Please try again or contact support.');
+                        }
+                    } catch (e) {
+                        console.error("Error showing notification:", e);
+                        alert('There was an unexpected response from the server. Please try again or contact support.');
                     }
-                },
-                error: function(xhr) {
-                    // Show error message
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                submitBtn.innerHTML = originalBtnText;
+                submitBtn.disabled = false;
+                
+                try {
+                    if (typeof Swal !== 'undefined') {
                     Swal.fire({
                         icon: 'error',
                         title: 'Error',
-                        text: 'An error occurred. Please try again.',
+                            text: 'There was an error processing your order. Please try again.',
                         confirmButtonColor: '#8B4513'
                     });
-                    submitButton.prop('disabled', false).text(originalText);
+                    } else {
+                        alert('There was an error processing your order. Please try again.');
+                    }
+                } catch (e) {
+                    console.error("Error showing notification:", e);
+                    alert('There was an error processing your order. Please try again.');
                 }
             });
         });
     }
-
-    // Handle payment method selection
-    $('input[name="payment_method"]').on('change', function() {
-        const paymentMethod = $(this).val();
-        const totalAmount = parseFloat($('#totalAmount').text().replace('₹', '').trim());
-        
-        if (paymentMethod === 'COD' && totalAmount > 5000) {
-            // Show error message
-            Swal.fire({
-                icon: 'warning',
-                title: 'Cash on Delivery not available',
-                text: 'COD is not available for orders above ₹5,000. Please choose online payment.',
-                confirmButtonColor: '#8B4513'
-            });
-            
-            // Switch back to online payment
-            $('#payment_razorpay').prop('checked', true);
-            $('#selected_payment_method').val('RAZORPAY');
-        } else {
-            $('#selected_payment_method').val(paymentMethod);
-        }
-    });
-
-    // Rest of your JavaScript code...
 });
 </script>
+
+<!-- Global error handler for undefined URLs
+window.addEventListener('error', function(e) {
+    // Check if this is a navigation error to 'undefined'
+    if (e.target.tagName === 'SCRIPT' && e.target.src && e.target.src.includes('undefined')) {
+        e.preventDefault();
+        
+        // Get the order ID if available
+        const orderId = $('#order_id').val();
+        if (orderId) {
+            window.location.href = '/online_payment/payment_success/' + orderId + '/';
+        } else {
+            window.location.href = '/cart_section/order_placed/';
+        }
+        
+        return false;
+    }
+}, true);
+
+// Override window.location.href setter to prevent undefined URLs
+(function() {
+    const oldHrefDescriptor = Object.getOwnPropertyDescriptor(window.Location.prototype, 'href');
+    const oldHrefSetter = oldHrefDescriptor.set;
+    
+    Object.defineProperty(window.Location.prototype, 'href', {
+        set: function(url) {
+            if (url === 'undefined' || url.includes('/undefined') || url.includes('/checkout/undefined')) {
+                console.error('Prevented navigation to undefined URL:', url);
+                
+                // Get the order ID if available
+                const orderId = $('#order_id').val();
+                if (orderId) {
+                    // For orders with an ID, try to navigate to payment success
+                    oldHrefSetter.call(this, '/online_payment/payment_success/' + orderId + '/');
+        } else {
+                    // Default fallback
+                    oldHrefSetter.call(this, '/cart_section/order_placed/');
+                }
+            } else if (typeof url === 'string' && (url.startsWith('{') || url.includes('{"status":'))) {
+                console.error('Prevented navigation to JSON response:', url);
+                
+                try {
+                    // Try to parse the JSON
+                    const jsonResponse = JSON.parse(url);
+                    console.log("Parsed JSON response:", jsonResponse);
+                    
+                    // Check if this is a coupon response
+                    if (jsonResponse.status === 'success' && 
+                        (jsonResponse.hasOwnProperty('discount') || 
+                         jsonResponse.hasOwnProperty('discount_text') || 
+                         jsonResponse.message?.includes('Coupon'))) {
+                        console.log("Detected coupon response - preventing navigation");
+                        // Don't navigate at all for coupon responses
+                        return;
+                    }
+                    
+                    // If it's an order success response
+                    if (jsonResponse.status === 'success') {
+                        // Try to get order ID if available
+                        if (jsonResponse.order_id) {
+                            localStorage.setItem('current_order_id', jsonResponse.order_id);
+                        }
+                        
+                        // If it has a redirect URL, use that
+                        if (jsonResponse.redirect_url && 
+                            jsonResponse.redirect_url !== 'undefined' && 
+                            !jsonResponse.redirect_url.includes('undefined')) {
+                            console.log("Using redirect URL from response:", jsonResponse.redirect_url);
+                            oldHrefSetter.call(this, jsonResponse.redirect_url);
+                            return;
+                        }
+                        
+                        // Default success redirection for orders
+                        console.log("Order success response, redirecting to order placed");
+                        oldHrefSetter.call(this, '/cart_section/order_placed/');
+                        return;
+                    }
+                } catch (e) {
+                    console.error("Error handling JSON response:", e);
+                }
+            } else {
+                // Normal navigation
+                oldHrefSetter.call(this, url);
+            }
+        },
+        get: oldHrefDescriptor.get,
+        configurable: true
+    });
+})();
 {% endblock %}
 
 {% block content %}
@@ -816,7 +1800,7 @@ $(document).ready(function() {
                         <div id="couponMessage" class="mt-2"></div>
                     </div>
                     
-                    <div class="d-flex justify-content-between mb-2" id="couponDiscountRow" {% if not applied_coupon %}style="display: none !important;"{% endif %}>
+                    <div class="d-flex justify-content-between mb-2" id="couponDiscountRow" {% if not applied_coupon %}style="display: none;"{% endif %}>
                         <span>Coupon Discount:</span>
                         <span class="text-danger" id="couponDiscount">{% if coupon_discount %}-₹{{ coupon_discount }}{% else %}-₹0{% endif %}</span>
                     </div>
@@ -831,13 +1815,30 @@ $(document).ready(function() {
                     <div class="mb-4">
                         <h5 class="mb-3">Payment Method</h5>
                         <div class="form-check mb-2">
-                            <input class="form-check-input" type="radio" name="payment_method" id="payment_cod" value="COD" checked>
+                            <input class="form-check-input" type="radio" name="payment_method" id="payment_cod" value="COD" 
+                                   {% if total > 5000 %}disabled{% elif default_payment_method == 'COD' %}checked{% endif %}>
                             <label class="form-check-label" for="payment_cod">
                                 Cash on Delivery (COD)
+                                {% if total > 5000 %}
+                                <span class="badge bg-warning text-dark ms-2">Not available for orders above ₹5,000</span>
+                                {% endif %}
+                            </label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="payment_method" id="payment_wallet" value="WALLET" 
+                                   {% if not wallet or wallet.balance < total %}disabled{% elif default_payment_method == 'WALLET' %}checked{% endif %}>
+                            <label class="form-check-label" for="payment_wallet">
+                                Pay with Wallet Balance
+                                {% if wallet %}
+                                <span class="badge bg-{% if wallet.balance >= total %}success{% else %}danger{% endif %} ms-2">Available: ₹{{ wallet.balance }}</span>
+                                {% else %}
+                                <span class="badge bg-danger ms-2">No wallet found</span>
+                                {% endif %}
                             </label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input" type="radio" name="payment_method" id="payment_razorpay" value="RAZORPAY">
+                            <input class="form-check-input" type="radio" name="payment_method" id="payment_razorpay" value="RAZORPAY" 
+                                   {% if default_payment_method == 'RAZORPAY' %}checked{% endif %}>
                             <label class="form-check-label" for="payment_razorpay">
                                 Pay Online (Credit/Debit Card, UPI, Netbanking)
                             </label>
@@ -848,7 +1849,8 @@ $(document).ready(function() {
                         {% csrf_token %}
                         <input type="hidden" name="selected_address_id" id="selected_address_id" value="">
                         <input type="hidden" name="coupon_code" id="hidden_coupon_code" value="">
-                        <input type="hidden" name="payment_method" id="selected_payment_method" value="COD">
+                        <input type="hidden" name="payment_method" id="selected_payment_method" value="{{ default_payment_method }}">
+                        <input type="hidden" name="order_id" id="order_id" value="{% if retry_order %}{{ retry_order.order_id }}{% endif %}">
                         <button type="submit" class="btn btn-primary w-100" 
                                 {% if not addresses and not account_details.house_name %}disabled{% endif %}>
                             Place Order
@@ -1006,530 +2008,6 @@ $(document).ready(function() {
         </div>
     </div>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Handle address selection
-    const addressCards = document.querySelectorAll('.address-card');
-    const selectedAddressIdInput = document.getElementById('selected_address_id');
-    
-    // Set initial selected address
-    const initialSelectedRadio = document.querySelector('input[name="selected_address"]:checked');
-    if (initialSelectedRadio) {
-        selectedAddressIdInput.value = initialSelectedRadio.value;
-    }
-    
-    addressCards.forEach(card => {
-        card.addEventListener('click', function(e) {
-            // Don't select the address if clicking on edit or delete buttons
-            if (e.target.closest('.address-actions')) {
-                return;
-            }
-            
-            // Find the radio input inside this card
-            const radio = this.querySelector('input[type="radio"]');
-            if (radio) {
-                // Uncheck all radios
-                document.querySelectorAll('input[name="selected_address"]').forEach(r => {
-                    r.checked = false;
-                    r.closest('.address-card').classList.remove('selected');
-                });
-                
-                // Check this radio
-                radio.checked = true;
-                this.classList.add('selected');
-                
-                // Update the hidden input for the form
-                selectedAddressIdInput.value = radio.value;
-            }
-        });
-    });
-
-    // Handle edit address buttons
-    const editAddressBtns = document.querySelectorAll('.edit-address-btn');
-    const editAddressModal = new bootstrap.Modal(document.getElementById('editAddressModal'));
-    const editAddressForm = document.getElementById('editAddressForm');
-    const editAddressFormError = document.getElementById('editAddressFormError');
-    const editAddressFormSuccess = document.getElementById('editAddressFormSuccess');
-    
-    editAddressBtns.forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const addressId = this.getAttribute('data-address-id');
-            
-            // Reset form and alerts
-            editAddressForm.reset();
-            editAddressFormError.classList.add('d-none');
-            editAddressFormSuccess.classList.add('d-none');
-            
-            // Fetch address details
-            fetch(`{% url 'cart_section:get_address' 0 %}`.replace('0', addressId))
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        // Populate form with address details
-                        document.getElementById('edit_address_id').value = data.address.id;
-                        document.getElementById('edit_full_name').value = data.address.full_name;
-                        document.getElementById('edit_phone_number').value = data.address.phone_number;
-                        document.getElementById('edit_pincode').value = data.address.pincode;
-                        document.getElementById('edit_house_no').value = data.address.house_no;
-                        document.getElementById('edit_area').value = data.address.area;
-                        document.getElementById('edit_landmark').value = data.address.landmark || '';
-                        document.getElementById('edit_city').value = data.address.city;
-                        document.getElementById('edit_state').value = data.address.state;
-                        document.getElementById('edit_is_default').checked = data.address.is_default;
-                        
-                        // Show modal
-                        editAddressModal.show();
-                    } else {
-                        alert(data.message || 'Error fetching address details');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error fetching address details. Please try again.');
-                });
-        });
-    });
-    
-    // Handle update address button
-    const updateAddressBtn = document.getElementById('updateAddressBtn');
-    if (updateAddressBtn) {
-        updateAddressBtn.addEventListener('click', function() {
-            // Reset alerts
-            editAddressFormError.classList.add('d-none');
-            editAddressFormSuccess.classList.add('d-none');
-            
-            // Form validation
-            if (!editAddressForm.checkValidity()) {
-                editAddressForm.reportValidity();
-                return;
-            }
-            
-            // Get address ID
-            const addressId = document.getElementById('edit_address_id').value;
-            
-            // Collect form data
-            const formData = new FormData(editAddressForm);
-            
-            // Send AJAX request
-            fetch(`{% url 'cart_section:update_address' 0 %}`.replace('0', addressId), {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-                },
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    // Show success message
-                    editAddressFormSuccess.textContent = data.message;
-                    editAddressFormSuccess.classList.remove('d-none');
-                    
-                    // Close modal after a delay
-                    setTimeout(() => {
-                        editAddressModal.hide();
-                        
-                        // Reload the page to show the updated address
-                        window.location.reload();
-                    }, 1500);
-                } else {
-                    // Show error message
-                    editAddressFormError.textContent = data.message;
-                    editAddressFormError.classList.remove('d-none');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                editAddressFormError.textContent = 'An error occurred. Please try again.';
-                editAddressFormError.classList.remove('d-none');
-            });
-        });
-    }
-    
-    // Handle delete address buttons
-    const deleteAddressBtns = document.querySelectorAll('.delete-address-btn');
-    
-    deleteAddressBtns.forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const addressId = this.getAttribute('data-address-id');
-            
-            if (confirm('Are you sure you want to delete this address?')) {
-                // Send AJAX request
-                fetch(`{% url 'cart_section:delete_address' 0 %}`.replace('0', addressId), {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        // Show success message
-                        alert(data.message);
-                        
-                        // Reload the page to update the address list
-                        window.location.reload();
-                    } else {
-                        // Show error message with a more user-friendly approach
-                        if (data.message.includes('used in existing orders')) {
-                            // Create a Bootstrap modal for better user experience
-                            const modalHtml = `
-                                <div class="modal fade" id="addressErrorModal" tabindex="-1" aria-hidden="true">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Cannot Delete Address</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <p>${data.message}</p>
-                                                <p>This address is linked to your order history. For record-keeping purposes, addresses used in completed orders cannot be deleted.</p>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Understood</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                            
-                            // Append modal to body
-                            const modalContainer = document.createElement('div');
-                            modalContainer.innerHTML = modalHtml;
-                            document.body.appendChild(modalContainer);
-                            
-                            // Show the modal
-                            const errorModal = new bootstrap.Modal(document.getElementById('addressErrorModal'));
-                            errorModal.show();
-                            
-                            // Remove modal from DOM after it's hidden
-                            document.getElementById('addressErrorModal').addEventListener('hidden.bs.modal', function() {
-                                this.remove();
-                            });
-                        } else {
-                            // For other errors, use a simple alert
-                            alert(data.message || 'Error deleting address');
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error deleting address. Please try again.');
-                });
-            }
-        });
-    });
-
-    // Handle payment method selection
-    $('input[name="payment_method"]').on('change', function() {
-        const paymentMethod = $(this).val();
-        const totalAmount = parseFloat($('#totalAmount').text().replace('₹', '').trim());
-        
-        if (paymentMethod === 'COD' && totalAmount > 5000) {
-            // Show error message
-            Swal.fire({
-                icon: 'warning',
-                title: 'Cash on Delivery not available',
-                text: 'COD is not available for orders above ₹5,000. Please choose online payment.',
-                confirmButtonColor: '#8B4513'
-            });
-            
-            // Switch back to online payment
-            $('#payment_razorpay').prop('checked', true);
-            $('#selected_payment_method').val('RAZORPAY');
-        } else {
-            $('#selected_payment_method').val(paymentMethod);
-        }
-    });
-
-    // Add Address Form Handling
-    const addAddressForm = document.getElementById('addAddressForm');
-    const saveAddressBtn = document.getElementById('saveAddressBtn');
-    const addressFormError = document.getElementById('addressFormError');
-    const addressFormSuccess = document.getElementById('addressFormSuccess');
-
-    if (saveAddressBtn) {
-        saveAddressBtn.addEventListener('click', function() {
-            // Reset alerts
-            addressFormError.classList.add('d-none');
-            addressFormSuccess.classList.add('d-none');
-            
-            // Form validation
-            const form = document.getElementById('addAddressForm');
-            if (!form.checkValidity()) {
-                form.reportValidity();
-                return;
-            }
-            
-            // Collect form data
-            const formData = new FormData(addAddressForm);
-            
-            // Send AJAX request
-            fetch('{% url "cart_section:add_address" %}', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-                },
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    // Show success message
-                    addressFormSuccess.textContent = data.message;
-                    addressFormSuccess.classList.remove('d-none');
-                    
-                    // Reset form
-                    addAddressForm.reset();
-                    
-                    // Close modal after a delay
-                    setTimeout(() => {
-                        const modal = bootstrap.Modal.getInstance(document.getElementById('addAddressModal'));
-                        modal.hide();
-                        
-                        // Reload the page to show the new address
-                        window.location.reload();
-                    }, 1500);
-                } else {
-                    // Show error message
-                    addressFormError.textContent = data.message;
-                    addressFormError.classList.remove('d-none');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                addressFormError.textContent = 'An error occurred. Please try again.';
-                addressFormError.classList.remove('d-none');
-            });
-        });
-    }
-
-    // Handle coupon selection from the list
-    document.querySelectorAll('.coupon-item').forEach(item => {
-        item.addEventListener('click', function() {
-            const couponCode = this.getAttribute('data-coupon-code');
-            
-            // Close the accordion
-            const accordionButton = document.querySelector('[data-bs-target="#availableCouponsCollapse"]');
-            const bsCollapse = bootstrap.Collapse.getInstance(document.getElementById('availableCouponsCollapse'));
-            if (bsCollapse) {
-                bsCollapse.hide();
-            }
-            
-            // Set the coupon code in the input field
-            const couponInput = document.getElementById('couponCode');
-            couponInput.value = couponCode;
-            
-            // Apply the coupon
-            applyCoupon(couponCode);
-        });
-    });
-    
-    // Handle coupon application
-    document.getElementById('applyCouponBtn')?.addEventListener('click', function() {
-        const couponCode = document.getElementById('couponCode').value.trim();
-        if (!couponCode) {
-            showCouponMessage('Please enter a coupon code', 'danger');
-            return;
-        }
-        
-        applyCoupon(couponCode);
-    });
-    
-    // Handle coupon removal
-    document.getElementById('removeCouponBtn')?.addEventListener('click', function() {
-        removeCoupon();
-    });
-    
-    function applyCoupon(couponCode) {
-        // Get CSRF token
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-        
-        // Send request to apply coupon
-        fetch('{% url "cart_section:apply_coupon" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': csrfToken
-            },
-            body: `coupon_code=${couponCode}`
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                showCouponMessage(data.message, 'success');
-                
-                // Show coupon discount row
-                const couponDiscountRow = document.getElementById('couponDiscountRow');
-                couponDiscountRow.style.display = 'flex !important';
-                couponDiscountRow.style.display = 'flex';
-                
-                // Update coupon discount amount
-                document.getElementById('couponDiscount').textContent = `-${data.discount_text}`;
-                
-                // Update total amount
-                document.getElementById('totalAmount').textContent = `₹${data.new_total}`;
-                
-                // Store coupon code in hidden input
-                document.getElementById('hidden_coupon_code').value = couponCode;
-                
-                // Update UI to show remove button instead of apply button
-                updateCouponUI(true, couponCode);
-            } else {
-                showCouponMessage(data.message, 'danger');
-                
-                // If there was a previously applied coupon and an invalid one is entered,
-                // reset the UI to show the original total
-                if (document.getElementById('hidden_coupon_code').value) {
-                    // Remove any previously applied coupon
-                    removeCoupon();
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showCouponMessage('An error occurred while applying the coupon', 'danger');
-        });
-    }
-    
-    function removeCoupon() {
-        // Get CSRF token
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-        
-        // Send request to remove coupon
-        fetch('{% url "cart_section:remove_coupon" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': csrfToken
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                showCouponMessage(data.message, 'info');
-                
-                // Hide coupon discount row
-                const couponDiscountRow = document.getElementById('couponDiscountRow');
-                couponDiscountRow.style.display = 'none !important';
-                
-                // Update total amount
-                document.getElementById('totalAmount').textContent = `₹${data.new_total}`;
-                
-                // Clear coupon code in hidden input
-                document.getElementById('hidden_coupon_code').value = '';
-                
-                // Update UI to show apply button instead of remove button
-                updateCouponUI(false);
-            } else {
-                showCouponMessage(data.message, 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showCouponMessage('An error occurred while removing the coupon', 'danger');
-        });
-    }
-    
-    function updateCouponUI(isApplied, couponCode = '') {
-        const couponInput = document.getElementById('couponCode');
-        const couponButtonContainer = couponInput.nextElementSibling;
-        
-        if (isApplied) {
-            // Update input
-            couponInput.value = couponCode;
-            couponInput.disabled = true;
-            
-            // Replace apply button with remove button
-            couponButtonContainer.outerHTML = '<button class="btn btn-outline-danger" type="button" id="removeCouponBtn">Remove</button>';
-            
-            // Add event listener to the new remove button
-            document.getElementById('removeCouponBtn').addEventListener('click', function() {
-                removeCoupon();
-            });
-        } else {
-            // Update input
-            couponInput.value = '';
-            couponInput.disabled = false;
-            
-            // Replace remove button with apply button
-            couponButtonContainer.outerHTML = '<button class="btn btn-outline-secondary" type="button" id="applyCouponBtn">Apply</button>';
-            
-            // Add event listener to the new apply button
-            document.getElementById('applyCouponBtn').addEventListener('click', function() {
-                const couponCode = document.getElementById('couponCode').value.trim();
-                if (!couponCode) {
-                    showCouponMessage('Please enter a coupon code', 'danger');
-                    return;
-                }
-                
-                // Get CSRF token
-                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-                
-                // Send request to apply coupon
-                fetch('{% url "cart_section:apply_coupon" %}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: `coupon_code=${couponCode}`
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        showCouponMessage(data.message, 'success');
-                        
-                        // Show coupon discount row
-                        const couponDiscountRow = document.getElementById('couponDiscountRow');
-                        couponDiscountRow.style.display = 'flex !important';
-                        couponDiscountRow.style.display = 'flex';
-                        
-                        // Update coupon discount amount
-                        document.getElementById('couponDiscount').textContent = `-${data.discount_text}`;
-                        
-                        // Update total amount
-                        document.getElementById('totalAmount').textContent = `₹${data.new_total}`;
-                        
-                        // Store coupon code in hidden input
-                        document.getElementById('hidden_coupon_code').value = couponCode;
-                        
-                        // Update UI to show remove button instead of apply button
-                        updateCouponUI(true, couponCode);
-                    } else {
-                        showCouponMessage(data.message, 'danger');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showCouponMessage('An error occurred while applying the coupon', 'danger');
-                });
-            });
-        }
-    }
-    
-    function showCouponMessage(message, type) {
-        const messageElement = document.getElementById('couponMessage');
-        messageElement.innerHTML = `<div class="alert alert-${type} py-2 px-3">${message}</div>`;
-        
-        // Clear message after 5 seconds
-        setTimeout(() => {
-            messageElement.innerHTML = '';
-        }, 5000);
-    }
-
-    function showError(message) {
-        showCouponMessage(message, 'danger');
-    }
-});
-</script>
 {% endblock %}
 
 

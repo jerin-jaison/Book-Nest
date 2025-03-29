@@ -280,6 +280,9 @@
                     </div>
                     {% endfor %}
                 </div>
+                <div class="alert alert-info mt-3">
+                    <small><i class="bi bi-info-circle"></i> Note: Coupons that have been used in previous orders are automatically removed from this list.</small>
+                </div>
             {% else %}
                 <div class="no-coupons">
                     <p class="mb-0">You don't have any active coupons yet.</p>
@@ -342,13 +345,13 @@
                     </button>
                 </div>
                 
-                <p class="mb-2">Or share this link:</p>
+                {% comment %} <p class="mb-2">Or share this link:</p>
                 <div class="referral-url-box">
                     <div class="referral-url">{{ referral_url }}</div>
                     <button class="copy-btn" onclick="copyReferralUrl()">
                         <i class="bi bi-clipboard"></i>
                     </button>
-                </div>
+                </div> {% endcomment %}
                 
                 <!-- <p class="mb-2">Share via:</p>
                 <div class="share-buttons">

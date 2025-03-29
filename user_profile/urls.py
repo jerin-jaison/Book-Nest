@@ -20,7 +20,10 @@ urlpatterns = [
     path('orders/<str:order_id>/cancel/', views.cancel_order_page, name='cancel_order_page'),
     path('orders/<str:order_id>/cancel/confirm/', views.cancel_order, name='cancel_order'),
     path('orders/<str:order_id>/return/', views.return_order, name='return_order'),
+    path('orders/<str:order_id>/return/cancel/', views.cancel_return_request, name='cancel_return_request'),
+    path('orders/<str:order_id>/return-item/', views.return_item, name='return_item'),
     path('orders/<str:order_id>/invoice/', views.generate_invoice, name='generate_invoice'),
+    path('get_item_rejection_reason/<int:item_id>/', views.get_item_rejection_reason, name='get_item_rejection_reason'),
     path('wishlist/', views.wishlist_view, name='wishlist'),
     path('wishlist/toggle/<int:product_id>/', views.toggle_wishlist, name='toggle_wishlist'),
     

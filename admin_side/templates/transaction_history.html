@@ -1,0 +1,381 @@
+{% extends 'admin_sidebar.html' %}
+{% load static %}
+
+{% block title %}Transaction History{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --primary-color: #8B4513;
+        --primary-hover: #6b3410;
+        --light-brown: #f5e6d3;
+        --bg-light: #fafafa;
+    }
+
+    .stats-card {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+
+    .table th {
+        background-color: var(--light-brown);
+        color: var(--primary-color);
+        font-weight: 600;
+        padding: 1rem;
+    }
+
+    .table td {
+        vertical-align: middle;
+        padding: 1rem;
+    }
+
+    .badge {
+        padding: 0.5em 1em;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+
+    .badge.badge-success { background-color: #d4edda !important; color: #155724; }
+    .badge.badge-warning { background-color: #fff3cd !important; color: #856404; }
+    .badge.badge-danger { background-color: #f8d7da !important; color: #721c24; }
+    .badge.badge-info { background-color: #d1ecf1 !important; color: #0c5460; }
+    .badge.badge-secondary { background-color: #e2e3e5 !important; color: #383d41; }
+
+    .btn-custom {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 8px 20px;
+        border: none;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-custom:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-2px);
+        color: white;
+    }
+
+    .btn-outline {
+        background-color: transparent;
+        color: var(--primary-color);
+        border: 2px solid var(--primary-color);
+        padding: 8px 20px;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-outline:hover {
+        background-color: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .search-input {
+        border-radius: 25px;
+        padding: 10px 20px;
+        border: 2px solid #dee2e6;
+        transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+        border-color: var(--primary-color);
+        box-shadow: none;
+    }
+
+    .filter-dropdown {
+        border-radius: 25px;
+        padding: 10px 20px;
+        border: 2px solid #dee2e6;
+    }
+
+    .pagination .page-item .page-link {
+        color: var(--primary-color);
+        border: none;
+        padding: 10px 15px;
+        margin: 0 5px;
+        border-radius: 25px;
+    }
+
+    .pagination .page-item.active .page-link {
+        background-color: var(--primary-color);
+        color: white;
+    }
+
+    .modal-content {
+        border-radius: 15px;
+        border: none;
+    }
+
+    .modal-header {
+        background-color: var(--light-brown);
+        border-radius: 15px 15px 0 0;
+    }
+
+    .modal-title {
+        color: var(--primary-color);
+    }
+
+    .btn-sm {
+        min-width: 90px;
+        text-align: center;
+        border-radius: 20px;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Header Section -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0" style="color: var(--primary-color);">
+            <i class="fas fa-exchange-alt me-2"></i>Transaction History
+        </h2>
+    </div>
+
+    <!-- Transaction Filters -->
+    <div class="card stats-card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <select class="form-select filter-dropdown" id="transaction_type" name="transaction_type">
+                        <option value="">All Transaction Types</option>
+                        <option value="wallet" {% if transaction_type == 'wallet' %}selected{% endif %}>Wallet</option>
+                        <option value="online" {% if transaction_type == 'online' %}selected{% endif %}>Online Payment</option>
+                        <option value="cod" {% if transaction_type == 'cod' %}selected{% endif %}>Cash On Delivery</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <input type="date" class="form-control search-input" id="date_from" name="date_from" value="{{ date_from|date:'Y-m-d' }}" placeholder="Date From">
+                </div>
+                <div class="col-md-2">
+                    <input type="date" class="form-control search-input" id="date_to" name="date_to" value="{{ date_to|date:'Y-m-d' }}" placeholder="Date To">
+                </div>
+                <div class="col-md-3">
+                    <div class="input-group">
+                        <input type="text" class="form-control search-input" id="user_search" name="user_search" 
+                               placeholder="Search by username or email" value="{{ user_search }}">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-custom">Apply</button>
+                        <a href="{% url 'admin_side:admin_transaction_history' %}" class="btn btn-outline">Clear</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Transaction List -->
+    <div class="card stats-card">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0" style="color: var(--primary-color);">Completed Transactions</h5>
+                <span class="badge badge-info">Total: {{ transactions.count }}</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Transaction ID</th>
+                            <th>User</th>
+                            <th>Date & Time</th>
+                            <th>Transaction Type</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Details</th>
+                            {% comment %} <th>Action</th> {% endcomment %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transaction in transactions %}
+                        <tr>
+                            <td>{{ transaction.id }}</td>
+                            <td>
+                                <div class="fw-medium">{{ transaction.user.username }}</div>
+                                <small class="text-muted">{{ transaction.user.email }}</small>
+                            </td>
+                            <td>{{ transaction.created_at|date:"d M, Y" }}<br>
+                                <small class="text-muted">{{ transaction.created_at|time:"H:i:s" }}</small>
+                            </td>
+                            <td>
+                                {% if transaction.type == 'wallet' %}
+                                    <span class="badge badge-info">Wallet</span>
+                                    <small class="d-block mt-1">{{ transaction.transaction_type }}</small>
+                                {% elif transaction.type == 'online' or 'online' in transaction.transaction_type|lower or 'razorpay' in transaction.transaction_type|lower %}
+                                    <span class="badge badge-success">Online Payment</span>
+                                    {% if transaction.payment_id %}
+                                    <small class="d-block mt-1">Razorpay ID: {{ transaction.payment_id|truncatechars:15 }}</small>
+                                    {% endif %}
+                                {% elif transaction.type == 'cod' %}
+                                    <span class="badge badge-warning">Cash On Delivery</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="fw-medium">₹{{ transaction.amount|floatformat:2 }}</div>
+                            </td>
+                            <td>
+                                {% if transaction.description and 'cancel' in transaction.description|lower %}
+                                    <span class="badge badge-secondary">Refund Request Canceled</span>
+                                {% elif transaction.status == 'COMPLETED' or transaction.status == 'PAID' %}
+                                    <span class="badge badge-success">{{ transaction.status }}</span>
+                                {% elif transaction.status == 'PENDING' %}
+                                    {% if transaction.source == 'refund' and transaction.order_id and transaction.transaction_type == 'CREDIT' %}
+                                        {% if transaction.description and 'cancelled' in transaction.description|lower %}
+                                            <span class="badge badge-secondary">Refund Request Canceled</span>
+                                        {% else %}
+                                            <span class="badge badge-warning">{{ transaction.status }}</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge badge-warning">{{ transaction.status }}</span>
+                                    {% endif %}
+                                {% elif transaction.status == 'FAILED' %}
+                                    <span class="badge badge-danger">{{ transaction.status }}</span>
+                                {% elif transaction.status == 'REFUNDED' %}
+                                    <span class="badge badge-info">{{ transaction.status }}</span>
+                                {% elif transaction.status == 'REFUND_REQUEST_CANCELED' or transaction.status == 'REFUND CANCELED' or transaction.status == 'CANCELED' %}
+                                    <span class="badge badge-secondary">Refund for order Canceled</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">{{ transaction.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if transaction.description %}
+                                    {{ transaction.description|truncatechars:40 }}
+                                {% elif transaction.source == 'order' %}
+                                    Order #{{ transaction.order_id }}
+                                {% elif transaction.source == 'refund' %}
+                                    Refund for Order #{{ transaction.order_id }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            {% comment %} <td>
+                                {% if transaction.source == 'order' or transaction.source == 'refund' %}
+                                    <button class="btn btn-sm btn-outline" onclick="viewOrderDetails('{{ transaction.order_id }}')">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                {% endif %}
+                            </td> {% endcomment %}
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center">No transactions found matching the criteria</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if transactions.has_other_pages %}
+            <nav class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if transactions.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if transaction_type %}&transaction_type={{ transaction_type }}{% endif %}{% if date_from %}&date_from={{ date_from|date:'Y-m-d' }}{% endif %}{% if date_to %}&date_to={{ date_to|date:'Y-m-d' }}{% endif %}{% if user_search %}&user_search={{ user_search }}{% endif %}">
+                            <i class="fas fa-angle-double-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ transactions.previous_page_number }}{% if transaction_type %}&transaction_type={{ transaction_type }}{% endif %}{% if date_from %}&date_from={{ date_from|date:'Y-m-d' }}{% endif %}{% if date_to %}&date_to={{ date_to|date:'Y-m-d' }}{% endif %}{% if user_search %}&user_search={{ user_search }}{% endif %}">
+                            <i class="fas fa-angle-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in transactions.paginator.page_range %}
+                        {% if num == transactions.number %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                        {% elif num > transactions.number|add:'-3' and num < transactions.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}{% if transaction_type %}&transaction_type={{ transaction_type }}{% endif %}{% if date_from %}&date_from={{ date_from|date:'Y-m-d' }}{% endif %}{% if date_to %}&date_to={{ date_to|date:'Y-m-d' }}{% endif %}{% if user_search %}&user_search={{ user_search }}{% endif %}">{{ num }}</a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if transactions.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ transactions.next_page_number }}{% if transaction_type %}&transaction_type={{ transaction_type }}{% endif %}{% if date_from %}&date_from={{ date_from|date:'Y-m-d' }}{% endif %}{% if date_to %}&date_to={{ date_to|date:'Y-m-d' }}{% endif %}{% if user_search %}&user_search={{ user_search }}{% endif %}">
+                            <i class="fas fa-angle-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ transactions.paginator.num_pages }}{% if transaction_type %}&transaction_type={{ transaction_type }}{% endif %}{% if date_from %}&date_from={{ date_from|date:'Y-m-d' }}{% endif %}{% if date_to %}&date_to={{ date_to|date:'Y-m-d' }}{% endif %}{% if user_search %}&user_search={{ user_search }}{% endif %}">
+                            <i class="fas fa-angle-double-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+<!-- Order Details Modal -->
+<div class="modal fade" id="orderDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Order Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="orderDetailsContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+    $(document).ready(function() {
+        // Add any additional JS functionality here
+    });
+    
+    // View Order Details
+    function viewOrderDetails(orderId) {
+        console.log('Viewing order details for:', orderId);
+        
+        fetch(`/admin_side/orders/${orderId}/details/`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.text();
+        })
+        .then(html => {
+            console.log('Received HTML response');
+            const orderDetailsContent = document.getElementById('orderDetailsContent');
+            orderDetailsContent.innerHTML = html;
+            
+            // Find the modal element and create a new Bootstrap modal instance
+            const modalElement = document.getElementById('orderDetailsModal');
+            const modal = new bootstrap.Modal(modalElement);
+            
+            // Show the modal
+            modal.show();
+            
+            console.log('Modal should be visible now');
+        })
+        .catch(error => {
+            console.error('Error loading order details:', error);
+            alert('Failed to load order details. Please try again.');
+        });
+    }
+</script>
+
+<!-- Make sure Bootstrap JS is loaded -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %} 

@@ -126,6 +126,9 @@
             <a href="{% url 'admin_side:category_management' %}" class="btn-custom">
                 <i class="bi bi-folder me-2"></i>Categories
             </a>
+            <a href="{% url 'admin_side:wallet_history' %}" class="btn-custom">
+                <i class="bi bi-wallet2 me-2"></i>Wallet History
+            </a>
             
         </div>
         
@@ -212,6 +215,15 @@
                             <h5 class="card-title text-primary mb-3">Inventory Control</h5>
                             <p class="card-text">Monitor stock levels, set alerts, and manage inventory.</p>
                             <a href="#" class="btn-outline">Check Inventory</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title text-primary mb-3">Wallet Management</h5>
+                            <p class="card-text">View wallet transactions, track refunds, and manage user balances.</p>
+                            <a href="{% url 'admin_side:wallet_history' %}" class="btn-outline">View Transactions</a>
                         </div>
                     </div>
                 </div>

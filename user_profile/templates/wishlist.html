@@ -150,7 +150,7 @@
                                 {% if item.product.get_best_offer %}
                                     {% with best_offer=item.product.get_best_offer %}
                                         {% if best_offer.is_valid and best_offer.end_date > now %}
-                                            <span class="price-tag">₹{{ best_offer.get_discounted_price }}</span>
+                                            <span class="price-tag">₹{{ item.product.get_offer_price }}</span>
                                             <span class="original-price">₹{{ item.product.price }}</span>
                                         {% elif item.product.discount_price %}
                                             <span class="price-tag">₹{{ item.product.discount_price }}</span>

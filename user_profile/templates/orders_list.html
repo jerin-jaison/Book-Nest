@@ -94,8 +94,8 @@
     }
 
     .status-returned {
-        background-color: #e2e3e5;
-        color: #383d41;
+        background-color: #808080;
+        color: #fff;
     }
 
     .status-return-requested {
@@ -103,9 +103,9 @@
         color: #000;
     }
 
-    .status-returned {
-        background-color: #808080;
-        color: #fff;
+    .status-return-rejected {
+        background-color: #f8d7da;
+        color: #721c24;
     }
 
     .order-items {
@@ -270,9 +270,11 @@
                     <div class="order-date">{{ order.created_at|date:"F d, Y" }}</div>
                 </div>
                 <div class="order-status">
-                    <span class="status-badge {% if order.status == 'DELIVERED' %}status-delivered{% elif order.status == 'RETURN_REQUESTED' %}status-return-requested{% elif order.status == 'RETURNED' %}status-returned{% else %}status-{{ order.status|lower }}{% endif %}">
+                    <span id="status-badge-{{ order.order_id }}" class="status-badge {% if order.status == 'DELIVERED' %}status-delivered{% elif order.status == 'RETURN_REQUESTED' %}status-return-requested{% elif order.status == 'RETURNED' %}status-returned{% elif order.status == 'RETURN_REJECTED' %}status-return-rejected{% else %}status-{{ order.status|lower }}{% endif %}">
                         {% if order.return_requested and order.status != 'RETURNED' %}
                             Return Requested
+                        {% elif order.status == 'RETURN_REJECTED' %}
+                            Return Request Rejected
                         {% else %}
                             {{ order.get_status_display }}
                         {% endif %}
@@ -301,6 +303,11 @@
                 <a href="{% url 'user_profile:generate_invoice' order.order_id %}" class="btn-action" style="background-color: #28a745; color: white;">
                     <i class="bi bi-file-earmark-pdf"></i> Invoice
                 </a>
+                {% if order.status == 'PENDING' %}
+                <a href="{% url 'cart_section:retry_payment' order.order_id %}" class="btn-action" style="background-color: #ffc107; color: #212529; font-weight: bold;">
+                    <i class="bi bi-arrow-repeat me-1"></i>Retry Purchase
+                </a>
+                {% endif %}
                 {% if order.status == 'PENDING' or order.status == 'CONFIRMED' %}
                 <a href="{% url 'user_profile:cancel_order_page' order.order_id %}" class="btn-action btn-cancel">Cancel Order</a>
                 {% endif %}
@@ -401,7 +408,7 @@
     function showCancelModal(orderId) {
         const modal = document.getElementById('cancelModal');
         const form = document.getElementById('cancelForm');
-        form.action = `{% url 'user_profile:cancel_order' '000' %}`.replace('000', orderId);
+        form.action = `/user_profile/cancel-order/${orderId}/`;
         modal.style.display = 'block';
     }
 
@@ -412,7 +419,7 @@
     function showReturnModal(orderId) {
         const modal = document.getElementById('returnModal');
         const form = document.getElementById('returnForm');
-        form.action = `{% url 'user_profile:return_order' '000' %}`.replace('000', orderId);
+        form.action = `/user_profile/return-order/${orderId}/`;
         modal.style.display = 'block';
     }
 
@@ -420,72 +427,64 @@
         document.getElementById('returnModal').style.display = 'none';
     }
 
-    // Close modals when clicking outside
-    window.onclick = function(event) {
-        const cancelModal = document.getElementById('cancelModal');
-        const returnModal = document.getElementById('returnModal');
-        if (event.target === cancelModal) {
-            cancelModal.style.display = 'none';
-        }
-        if (event.target === returnModal) {
-            returnModal.style.display = 'none';
-        }
+    // Function to check for mixed item statuses and update order status badge
+    function updateOrderStatusBadges() {
+        {% for order in orders %}
+        (function() {
+            const orderId = "{{ order.order_id }}";
+            const items = [
+                {% for item in order.items.all %}
+                {
+                    id: '{{ item.id }}',
+                    status: '{{ item.status }}'
+                }{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ];
+            
+            if (items.length <= 1) return; // Skip if only one item
+            
+            // Count items with each status
+            let totalItems = items.length;
+            let requestedCount = 0;
+            let rejectedCount = 0;
+            let returnedCount = 0;
+            
+            items.forEach(item => {
+                if (item.status === 'RETURN_REQUESTED') {
+                    requestedCount++;
+                } else if (item.status === 'RETURN_REJECTED') {
+                    rejectedCount++;
+                } else if (item.status === 'RETURNED') {
+                    returnedCount++;
+                }
+            });
+            
+            // Only update if we have mixed statuses
+            if ((requestedCount > 0 || rejectedCount > 0 || returnedCount > 0) && 
+                (requestedCount < totalItems || rejectedCount < totalItems || returnedCount < totalItems)) {
+                
+                const statusBadge = document.getElementById(`status-badge-${orderId}`);
+                if (!statusBadge) return;
+                
+                // Determine the composite status based on priority
+                if (requestedCount > 0) {
+                    statusBadge.textContent = (requestedCount === totalItems) ? 'Return Requested' : 'Partial Return Requested';
+                    statusBadge.className = 'status-badge status-return-requested';
+                } else if (rejectedCount > 0) {
+                    statusBadge.textContent = (rejectedCount === totalItems) ? 'Return Request Rejected' : 'Partial Return Rejected';
+                    statusBadge.className = 'status-badge status-return-rejected';
+                } else if (returnedCount > 0) {
+                    statusBadge.textContent = (returnedCount === totalItems) ? 'RETURNED' : 'Partially Returned';
+                    statusBadge.className = 'status-badge status-returned';
+                }
+            }
+        })();
+        {% endfor %}
     }
-
-    // Form submission handling
-    document.getElementById('cancelForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-        
-        fetch(this.action, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-            },
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                location.reload();
-            } else {
-                alert(data.message || 'An error occurred');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred. Please try again.');
-        });
-    });
-
-    document.getElementById('returnForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-        
-        if (!formData.get('return_reason').trim()) {
-            alert('Please provide a reason for return');
-            return;
-        }
-        
-        fetch(this.action, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-            },
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                location.reload();
-            } else {
-                alert(data.message || 'An error occurred');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred. Please try again.');
-        });
+    
+    // Run on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateOrderStatusBadges();
     });
 </script>
 {% endblock %}

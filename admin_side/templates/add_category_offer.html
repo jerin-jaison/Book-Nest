@@ -170,24 +170,50 @@
 </div>
 
 <script>
-    // Set default dates
     document.addEventListener('DOMContentLoaded', function() {
-        const now = new Date();
-        const startDate = new Date(now);
-        const endDate = new Date(now);
-        endDate.setDate(endDate.getDate() + 30); // Default end date is 30 days from now
+        // Set default dates for new offers
+        const startDateInput = document.getElementById('start_date');
+        const endDateInput = document.getElementById('end_date');
         
-        // Format dates for datetime-local input
-        document.getElementById('start_date').value = formatDateForInput(startDate);
-        document.getElementById('end_date').value = formatDateForInput(endDate);
+        // Set start date to now
+        const now = new Date();
+        startDateInput.value = now.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:MM
+        
+        // Set end date to 30 days from now
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + 30);
+        endDateInput.value = endDate.toISOString().slice(0, 16);
+        
+        // Form validation
+        const form = document.querySelector('form');
+        form.addEventListener('submit', function(e) {
+            const categorySelect = document.getElementById('category');
+            const selectedOption = categorySelect.options[categorySelect.selectedIndex];
+            
+            if (!selectedOption.value) {
+                return; // Let the browser handle the required validation
+            }
+            
+            // Get the categories from the dropdown to check for duplicates
+            const allOptions = Array.from(categorySelect.options).slice(1); // Skip the first "Select a category" option
+            const selectedCategoryName = selectedOption.textContent.split(' (')[0].trim().toLowerCase();
+            
+            // Check if there are any matching category names (case-insensitive)
+            let duplicateFound = false;
+            allOptions.forEach(option => {
+                if (option.value !== selectedOption.value) {
+                    const optionCategoryName = option.textContent.split(' (')[0].trim().toLowerCase();
+                    if (optionCategoryName === selectedCategoryName) {
+                        duplicateFound = true;
+                    }
+                }
+            });
+            
+            if (duplicateFound) {
+                e.preventDefault();
+                alert(`A category with a similar name already exists. Case-insensitive matches like 'Comics', 'comics', and 'COMICS' are considered duplicates.`);
+            }
+        });
     });
-    
-    function formatDateForInput(date) {
-        return date.getFullYear() + '-' + 
-               String(date.getMonth() + 1).padStart(2, '0') + '-' + 
-               String(date.getDate()).padStart(2, '0') + 'T' + 
-               String(date.getHours()).padStart(2, '0') + ':' + 
-               String(date.getMinutes()).padStart(2, '0');
-    }
 </script>
 {% endblock %} 

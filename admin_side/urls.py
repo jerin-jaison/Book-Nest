@@ -36,7 +36,14 @@ urlpatterns = [
     path('orders/<str:order_id>/process-return/', views.process_return, name='process_return'),
     path('orders/<str:order_id>/approve-return/', views.approve_return, name='approve_return'),
     path('orders/<str:order_id>/reject-return/', views.reject_return, name='reject_return'),
+    path('orders/<str:order_id>/approve-item-return/', views.approve_item_return, name='approve_item_return'),
+    path('orders/<str:order_id>/reject-item-return/', views.reject_item_return, name='reject_item_return'),
+    path('orders/<str:order_id>/clean-refunds/', views.clean_order_refunds, name='clean_order_refunds'),
     path('orders/export/', views.export_orders, name='export_orders'),
+    
+    # Review Management URLs
+    path('reviews/', views.reviews_management, name='reviews'),
+    path('reviews/delete/<int:review_id>/', views.delete_review, name='delete_review'),
     
     # Inventory Management URLs
     path('products/<int:product_id>/update-stock/', views.update_stock, name='update_stock'),
@@ -75,4 +82,12 @@ urlpatterns = [
     path('coupons/edit/<str:code>/', views.edit_coupon, name='edit_coupon'),
     path('coupons/delete/<str:code>/', views.delete_coupon, name='delete_coupon'),
     path('coupons/generate-for-user/<int:user_id>/', views.generate_coupon_for_user, name='generate_coupon_for_user'),
+    
+    # Wallet Management URLs
+    path('wallet/history/', views.wallet_history, name='wallet_history'),
+    path('wallet/transaction/<int:transaction_id>/update/', views.update_wallet_transaction, name='update_wallet_transaction'),
+    path('wallet/export/', views.export_wallet_transactions, name='export_wallet_transactions'),
+    
+    # Transaction History URL
+    path('transactions/', views.admin_transaction_history_view, name='admin_transaction_history'),
 ]

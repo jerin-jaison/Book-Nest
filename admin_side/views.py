@@ -4,12 +4,12 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.views.decorators.cache import never_cache
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q, Count, Sum, F, ExpressionWrapper, DecimalField, Avg
-from django.db.models.functions import TruncMonth, TruncDay, TruncYear, TruncHour
+from django.db.models import Q, Count, Sum, F, ExpressionWrapper, DecimalField, Avg, Value
+from django.db.models.functions import TruncMonth, TruncDay, TruncYear, TruncHour, Concat
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from django.core.paginator import Paginator
-from .models import Product, ProductImage, Category, ProductOffer, CategoryOffer, ReferralOffer, ReferralCode, ReferralHistory, Coupon
+from .models import Product, ProductImage, Category, ProductOffer, CategoryOffer, ReferralOffer, ReferralCode, ReferralHistory, Coupon, Review
 from cart_section.models import Order, OrderItem
 from user_wallet.models import Wallet, WalletTransaction
 import os
@@ -146,6 +146,28 @@ def admin_home_view(request):
     ).annotate(
         total_sales=Sum(F('price') * F('quantity'))
     ).order_by('-total_sales')[:5]
+    
+    # Get top 10 products for modal
+    top_ten_products = OrderItem.objects.filter(
+        order__in=orders,
+        order__status__in=['DELIVERED', 'SHIPPED']
+    ).values(
+        'product__id', 'product__title'
+    ).annotate(
+        total_sales=Sum(F('price') * F('quantity')),
+        items_sold=Sum('quantity')
+    ).order_by('-total_sales')[:10]
+    
+    # Get top 10 categories for modal
+    top_categories = OrderItem.objects.filter(
+        order__in=orders,
+        order__status__in=['DELIVERED', 'SHIPPED']
+    ).values(
+        'product__category__id', 'product__category__name'
+    ).annotate(
+        total_sales=Sum(F('price') * F('quantity')),
+        items_sold=Sum('quantity')
+    ).order_by('-total_sales')[:10]
     
     # Format data for top products chart
     top_products_labels = [p['product__title'][:15] + '...' if len(p['product__title']) > 15 else p['product__title'] for p in top_products]
@@ -305,6 +327,8 @@ def admin_home_view(request):
         'sales_chart_data': sales_chart_data,
         'top_products_labels': top_products_labels,
         'top_products_data': top_products_data,
+        'top_ten_products': top_ten_products,
+        'top_categories': top_categories,
     }
     
     return render(request, 'admin_dashboard.html', context)
@@ -536,13 +560,22 @@ def edit_product_view(request, product_id):
                     product.category = get_object_or_404(Category, id=category_id)
                 except (ValueError, Category.DoesNotExist):
                     messages.error(request, 'Invalid category selected')
-                    return render(request, 'edit_page.html', {'product': product, 'categories': categories})
+                    return render(request, 'add_or_edit.html', {'product': product, 'categories': categories})
             else:
                 product.category = None
             
-            # Update other fields
-            if request.POST.get('discount_price'):
-                product.discount_price = float(request.POST.get('discount_price'))
+            # Update discount price with proper validation
+            discount_price = request.POST.get('discount_price')
+            if discount_price and discount_price.strip():
+                try:
+                    discount_price = float(discount_price)
+                    if discount_price >= product.price:
+                        messages.error(request, 'Discount price must be less than regular price')
+                        return render(request, 'add_or_edit.html', {'product': product, 'categories': categories})
+                    product.discount_price = discount_price
+                except ValueError:
+                    messages.error(request, 'Invalid discount price format')
+                    return render(request, 'add_or_edit.html', {'product': product, 'categories': categories})
             else:
                 product.discount_price = None
             
@@ -586,7 +619,7 @@ def edit_product_view(request, product_id):
         'product': product,
         'categories': categories
     }
-    return render(request, 'edit_page.html', context)
+    return render(request, 'add_or_edit.html', context)
 
 @never_cache
 @login_required(login_url='admin_side:admin_login')
@@ -739,6 +772,14 @@ def add_category(request):
         is_active = request.POST.get('is_active') == 'on'
         
         try:
+            # Convert the input name to lowercase for case-insensitive comparison
+            lowercase_name = name.lower()
+            
+            # Check if a category with this name (case-insensitive) already exists
+            if Category.objects.filter(name__iexact=name).exists():
+                messages.error(request, f'A category with the name "{name}" already exists (case-insensitive match). Please use a different name.')
+                return redirect('admin_side:category_management')
+            
             # Generate the initial slug
             base_slug = slugify(name)
             slug = base_slug
@@ -773,8 +814,14 @@ def edit_category(request, category_id):
         try:
             new_name = request.POST.get('name')
             
-            # Only update slug if name has changed
-            if new_name != category.name:
+            # Check if the name has changed
+            if new_name.lower() != category.name.lower():
+                # Check if a category with this name (case-insensitive) already exists
+                if Category.objects.filter(name__iexact=new_name).exclude(id=category_id).exists():
+                    messages.error(request, f'A category with the name "{new_name}" already exists (case-insensitive match). Please use a different name.')
+                    return redirect('admin_side:category_management')
+                
+                # Only update slug if name has changed
                 base_slug = slugify(new_name)
                 slug = base_slug
                 counter = 1
@@ -1011,19 +1058,36 @@ def process_return(request, order_id):
                 # Create or get user's wallet
                 wallet, created = Wallet.objects.get_or_create(user=order.user)
                 
-                # Create wallet transaction
-                WalletTransaction.objects.create(
+                # Clean up any pending refund transactions
+                cleaned_count = clean_pending_refund_transactions(order)
+                
+                # Check if a completed refund transaction already exists for this order
+                existing_refund = WalletTransaction.objects.filter(
                     wallet=wallet,
-                    amount=order.total,
+                    reference_id=order.order_id,
                     transaction_type='CREDIT',
                     status='COMPLETED',
-                    description=f'Refund for order #{order.order_id}',
-                    reference_id=order.order_id
-                )
+                    description__contains='Refund for returned order'
+                ).exists()
                 
-                # Update wallet balance
-                wallet.balance += order.total
-                wallet.save()
+                if not existing_refund:
+                    # Add refund amount to wallet
+                    wallet.balance += order.total
+                    wallet.save()
+                    
+                    # Create wallet transaction record
+                    WalletTransaction.objects.create(
+                        wallet=wallet,
+                        amount=order.total,
+                        transaction_type='CREDIT',
+                        status='COMPLETED',
+                        description=f'Refund for returned order #{order.order_id}',
+                        reference_id=order.order_id
+                    )
+                    
+                    messages.success(request, f'Return approved and ₹{order.total} refunded to user\'s wallet')
+                else:
+                    messages.info(request, f'Return approved. Refund was already processed.')
                 
                 # Check if this user was referred and if a referral reward was given
                 referral_history = ReferralHistory.objects.filter(referred_user=order.user, reward_given=True, reward_deducted=False).first()
@@ -1064,35 +1128,89 @@ def process_return(request, order_id):
 def approve_return(request, order_id):
     if request.method == 'POST':
         try:
-            order = get_object_or_404(Order, order_id=order_id)
-            
-            # Check if return was requested
-            if not order.return_requested:
-                messages.error(request, 'No return request found for this order')
-                return redirect('admin_side:order_details', order_id=order_id)
-            
-            # Update order status
-            order.status = 'RETURNED'
-            order.returned_at = timezone.now()
-            order.save()
-            
-            # Process refund
-            # ... existing refund logic ...
-            
-            # Handle referral reward
-            # Check if this user was referred and if a referral reward was given
-            referral_history = ReferralHistory.objects.filter(referred_user=order.user, reward_given=True, reward_deducted=False).first()
-            if referral_history:
-                # Instead of deducting from wallet, expire the coupon
-                expire_successful = expire_referral_reward_coupon(order)
+            with transaction.atomic():
+                order = get_object_or_404(Order, order_id=order_id)
                 
-                if expire_successful:
-                    # Mark the referral reward as deducted to prevent further actions
-                    referral_history.reward_deducted = True
-                    referral_history.save()
-            
-            messages.success(request, 'Return approved and refund processed')
-            return redirect('admin_side:order_details', order_id=order_id)
+                # Check if return was requested
+                if not order.return_requested:
+                    messages.error(request, 'No return request found for this order')
+                    return redirect('admin_side:order_details', order_id=order_id)
+                
+                # Update order status
+                order.status = 'RETURNED'
+                order.returned_at = timezone.now()
+                
+                # Update payment status to REFUNDED
+                order.payment_status = 'REFUNDED'
+                order.save()
+                
+                # Increment product stock for each returned item
+                for item in order.items.all():
+                    product = item.product
+                    product.stock += item.quantity
+                    product.save()
+                
+                # Process refund through wallet
+                # Get or create user's wallet
+                wallet, created = Wallet.objects.get_or_create(user=order.user)
+                
+                # Clean up any pending refund transactions
+                cleaned_count = clean_pending_refund_transactions(order)
+                
+                # Check if a completed refund transaction already exists for this order
+                existing_refund = WalletTransaction.objects.filter(
+                    wallet=wallet,
+                    reference_id=order.order_id,
+                    transaction_type='CREDIT',
+                    status='COMPLETED',
+                    description__contains='Refund for returned order'
+                ).exists()
+                
+                if not existing_refund:
+                    # Add refund amount to wallet
+                    wallet.balance += order.total
+                    wallet.save()
+                    
+                    # Create wallet transaction record
+                    WalletTransaction.objects.create(
+                        wallet=wallet,
+                        amount=order.total,
+                        transaction_type='CREDIT',
+                        status='COMPLETED',
+                        description=f'Refund for returned order #{order.order_id}',
+                        reference_id=order.order_id
+                    )
+                    
+                    messages.success(request, f'Return approved and ₹{order.total} refunded to user\'s wallet')
+                else:
+                    messages.info(request, f'Return approved. Refund was already processed.')
+                
+                # Handle referral reward
+                # Check if this user was referred and if a referral reward was given
+                referral_history = ReferralHistory.objects.filter(
+                    referred_user=order.user, 
+                    reward_given=True, 
+                    reward_deducted=False
+                ).first()
+                
+                if referral_history:
+                    # Fixed reward amount of 100 rupees
+                    reward_amount = Decimal('100.00')
+                    
+                    # Deduct the reward from the referrer's wallet
+                    deduct_successful = deduct_referral_reward(
+                        user=referral_history.referrer,
+                        amount=reward_amount,
+                        order_id=order.order_id,
+                        reason='returned'
+                    )
+                    
+                    # Mark the referral reward as deducted
+                    if deduct_successful:
+                        referral_history.reward_deducted = True
+                        referral_history.save()
+                
+                return redirect('admin_side:order_details', order_id=order_id)
         except Exception as e:
             messages.error(request, f'Error approving return: {str(e)}')
             return redirect('admin_side:order_details', order_id=order_id)
@@ -1107,8 +1225,20 @@ def reject_return(request, order_id):
     order = get_object_or_404(Order, order_id=order_id)
     
     try:
-        order.status = 'DELIVERED'  # Revert to delivered status
+        # Save rejection notes if provided
+        notes = request.POST.get('notes')
+        if notes:
+            order.notes = f"Return request rejected: {notes}"
+        
+        # Update order status to explicitly show return rejection
+        order.status = 'RETURN_REJECTED'
+        # Reset return request flag since it's now been handled
+        order.return_requested = False
+        order.return_requested_at = None
+        
+        # Make sure to save all changes
         order.save()
+        
         return JsonResponse({'success': True})
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)})
@@ -1252,46 +1382,105 @@ def handle_return_request(request, order_id):
         messages.error(request, 'Access denied, You are not admin')
         return redirect('admin_side:admin_login')
     
-    order = get_object_or_404(Order, id=order_id)
+    order = get_object_or_404(Order, order_id=order_id)
     
     if request.method == 'POST':
         action = request.POST.get('action')
         
-        if action == 'approve':
-            # Update order status
-            order.status = 'RETURNED'
-            order.save()
-            
-            # Increment product stock for each returned item
-            for item in order.items.all():
-                product = item.product
-                product.stock += item.quantity
-                product.save()
-            
-            # Process refund through wallet
-            user = order.user
-            refund_amount = order.total_amount
-            user.wallet.balance += refund_amount
-            user.wallet.save()
-            
-            # Create wallet transaction record
-            WalletTransaction.objects.create(
-                wallet=user.wallet,
-                amount=refund_amount,
-                transaction_type='CREDIT',
-                description=f'Refund for Order #{order.id}'
-            )
-            
-            messages.success(request, f'Return request approved for Order #{order.id}. Stock updated and amount refunded.')
-            
-        elif action == 'reject':
-            # Update order status back to delivered
-            order.status = 'DELIVERED'
-            order.return_requested = False
-            order.return_requested_at = None
-            order.save()
-            
-            messages.success(request, f'Return request rejected for Order #{order.id}.')
+        try:
+            with transaction.atomic():
+                if action == 'approve':
+                    # Update order status
+                    order.status = 'RETURNED'
+                    order.returned_at = timezone.now()
+                    
+                    # Update payment status to REFUNDED
+                    order.payment_status = 'REFUNDED'
+                    order.save()
+                    
+                    # Increment product stock for each returned item
+                    for item in order.items.all():
+                        product = item.product
+                        product.stock += item.quantity
+                        product.save()
+                    
+                    # Process refund through wallet
+                    # Get or create user's wallet
+                    wallet, created = Wallet.objects.get_or_create(user=order.user)
+                    
+                    # Clean up any pending refund transactions
+                    cleaned_count = clean_pending_refund_transactions(order)
+                    
+                    # Check if a completed refund transaction already exists for this order
+                    existing_refund = WalletTransaction.objects.filter(
+                        wallet=wallet,
+                        reference_id=order.order_id,
+                        transaction_type='CREDIT',
+                        status='COMPLETED',
+                        description__contains='Refund for returned order'
+                    ).exists()
+                    
+                    if not existing_refund:
+                        # Add refund amount to wallet
+                        wallet.balance += order.total
+                        wallet.save()
+                        
+                        # Create wallet transaction record
+                        WalletTransaction.objects.create(
+                            wallet=wallet,
+                            amount=order.total,
+                            transaction_type='CREDIT',
+                            status='COMPLETED',
+                            description=f'Refund for returned order #{order.order_id}',
+                            reference_id=order.order_id
+                        )
+                        
+                        refund_message = f'Stock updated and ₹{order.total} refunded to user\'s wallet.'
+                    else:
+                        refund_message = 'Refund was already processed.'
+                    
+                    # Check if this user was referred and if a referral reward was given
+                    referral_history = ReferralHistory.objects.filter(
+                        referred_user=order.user, 
+                        reward_given=True, 
+                        reward_deducted=False
+                    ).first()
+                    
+                    if referral_history:
+                        # Fixed reward amount of 100 rupees
+                        reward_amount = Decimal('100.00')
+                        
+                        # Deduct the reward from the referrer's wallet
+                        deduct_successful = deduct_referral_reward(
+                            user=referral_history.referrer,
+                            amount=reward_amount,
+                            order_id=order.order_id,
+                            reason='returned'
+                        )
+                        
+                        # Mark the referral reward as deducted
+                        if deduct_successful:
+                            referral_history.reward_deducted = True
+                            referral_history.save()
+                    
+                    messages.success(request, f'Return request approved for Order #{order.order_id}. {refund_message}')
+                    
+                elif action == 'reject':
+                    # Update order status to return rejected
+                    order.status = 'RETURN_REJECTED'
+                    order.return_requested = False
+                    order.return_requested_at = None
+                    
+                    # Add rejection notes
+                    rejection_reason = request.POST.get('rejection_reason')
+                    if rejection_reason:
+                        order.notes = f"Return request rejected: {rejection_reason}"
+                        
+                    order.save()
+                    
+                    messages.success(request, f'Return request rejected for Order #{order.order_id}.')
+        except Exception as e:
+            messages.error(request, f'Error processing return request: {str(e)}')
     
     return redirect('admin_side:order_management')
 
@@ -1453,6 +1642,19 @@ def add_category_offer(request):
         try:
             category = Category.objects.get(id=category_id)
             
+            # Check if category name already exists case-insensitively
+            category_name_lower = category.name.lower()
+            existing_categories = Category.objects.filter(name__iexact=category.name).exclude(id=category.id)
+            
+            if existing_categories.exists():
+                messages.error(request, f'A category with the name "{category.name}" already exists (case-insensitive match). Please choose a different name.')
+                categories = Category.objects.filter(is_active=True).order_by('name')
+                context = {
+                    'categories': categories,
+                    'now': timezone.now(),
+                }
+                return render(request, 'add_category_offer.html', context)
+            
             # Create the offer
             CategoryOffer.objects.create(
                 category=category,
@@ -1474,6 +1676,7 @@ def add_category_offer(request):
     categories = Category.objects.filter(is_active=True).order_by('name')
     context = {
         'categories': categories,
+        'now': timezone.now(),  # Add current time for default date values
     }
     return render(request, 'add_category_offer.html', context)
 
@@ -1498,6 +1701,20 @@ def edit_category_offer(request, offer_id):
         try:
             category = Category.objects.get(id=category_id)
             
+            # Check if category name already exists case-insensitively
+            category_name_lower = category.name.lower()
+            existing_categories = Category.objects.filter(name__iexact=category.name).exclude(id=category.id)
+            
+            if existing_categories.exists():
+                messages.error(request, f'A category with the name "{category.name}" already exists (case-insensitive match). Please choose a different name.')
+                categories = Category.objects.filter(is_active=True).order_by('name')
+                context = {
+                    'offer': offer,
+                    'categories': categories,
+                    'now': timezone.now(),
+                }
+                return render(request, 'edit_category_offer.html', context)
+            
             # Update the offer
             offer.category = category
             offer.title = title
@@ -1519,6 +1736,7 @@ def edit_category_offer(request, offer_id):
     context = {
         'offer': offer,
         'categories': categories,
+        'now': timezone.now(),  # Add current time for date comparison
     }
     return render(request, 'edit_category_offer.html', context)
 
@@ -1665,7 +1883,8 @@ def generate_referral_code(request, user_id):
                 return ''.join(random.choice(chars) for _ in range(8))
             
             code = generate_code()
-            while ReferralCode.objects.filter(code=code).exists():
+            # Check for case-insensitive duplicates
+            while ReferralCode.objects.filter(code__iexact=code).exists():
                 code = generate_code()
             
             # Create the referral code
@@ -1716,7 +1935,8 @@ def give_referral_reward(request, referral_id):
         def generate_unique_code(length=8):
             while True:
                 code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
-                if not Coupon.objects.filter(code=code).exists():
+                # Use case-insensitive check for duplicates
+                if not Coupon.objects.filter(code__iexact=code).exists():
                     return code
         
         coupon_code = generate_unique_code()
@@ -1732,7 +1952,8 @@ def give_referral_reward(request, referral_id):
             discount_percentage=referral_offer.discount_percentage,
             min_purchase_amount=referral_offer.min_purchase_amount,
             is_active=True,
-            expiry_date=expiry_date
+            expiry_date=expiry_date,
+            is_admin_generated=False  # This is a referral reward, not manually admin generated
         )
         
         # Mark referral as rewarded
@@ -1780,9 +2001,12 @@ def create_coupon(request):
             if not code or not discount_type or not discount_value or not min_purchase_amount or not expiry_date:
                 return JsonResponse({'status': 'error', 'message': 'All fields are required'})
             
-            # Check if coupon code already exists
-            if Coupon.objects.filter(code=code).exists():
-                return JsonResponse({'status': 'error', 'message': 'Coupon code already exists'})
+            # Convert code to lowercase for comparison
+            lowercase_code = code.lower()
+            
+            # Check if coupon code already exists (case-insensitive)
+            if Coupon.objects.filter(code__iexact=code).exists():
+                return JsonResponse({'status': 'error', 'message': 'Coupon code already exists (case-insensitive match)'})
             
             # Convert values to appropriate types
             discount_value = float(discount_value)
@@ -1793,6 +2017,7 @@ def create_coupon(request):
             coupon.code = code
             coupon.min_purchase_amount = min_purchase_amount
             coupon.expiry_date = expiry_date
+            coupon.is_admin_generated = True  # Mark as admin generated
             
             # Set discount based on type
             if discount_type == 'percentage':
@@ -1917,7 +2142,8 @@ def generate_coupon_for_user(request, user_id):
                 return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
             
             code = generate_code()
-            while Coupon.objects.filter(code=code).exists():
+            # Check for case-insensitive duplicates
+            while Coupon.objects.filter(code__iexact=code).exists():
                 code = generate_code()
             
             # Get coupon details from request
@@ -1935,6 +2161,7 @@ def generate_coupon_for_user(request, user_id):
             coupon.user = user
             coupon.min_purchase_amount = min_purchase_amount
             coupon.expiry_date = expiry_date
+            coupon.is_admin_generated = True  # Mark as admin generated
             
             # Set discount based on type
             if discount_type == 'percentage':
@@ -2186,3 +2413,686 @@ def expire_referral_reward_coupon(order):
     except Exception as e:
         print(f"Error expiring referral reward coupon: {str(e)}")
         return False
+
+def clean_pending_refund_transactions(order):
+    """
+    Clean up any pending refund transactions for an order
+    This helps prevent duplicate refunds
+    """
+    try:
+        wallet = Wallet.objects.get(user=order.user)
+        # Delete any pending refund transactions for this order
+        pending_transactions = WalletTransaction.objects.filter(
+            wallet=wallet,
+            reference_id=order.order_id,
+            transaction_type='CREDIT',
+            status='PENDING',
+            description__contains='Refund for'
+        )
+        
+        if pending_transactions.exists():
+            count = pending_transactions.count()
+            pending_transactions.delete()
+            return count
+        return 0
+    except Wallet.DoesNotExist:
+        return 0
+    except Exception as e:
+        print(f"Error cleaning pending transactions: {str(e)}")
+        return 0
+
+def clean_duplicate_refund_transactions(order):
+    """
+    Clean up duplicate completed refund transactions for an order
+    Keeps the oldest transaction and removes any duplicates
+    """
+    try:
+        wallet = Wallet.objects.get(user=order.user)
+        # Find all completed refund transactions for this order
+        completed_transactions = WalletTransaction.objects.filter(
+            wallet=wallet,
+            reference_id=order.order_id,
+            transaction_type='CREDIT',
+            status='COMPLETED',
+            description__contains='Refund for'
+        ).order_by('created_at')
+        
+        # If there's more than one transaction, keep the first one and delete the rest
+        if completed_transactions.count() > 1:
+            # Get the first (oldest) transaction
+            first_transaction = completed_transactions.first()
+            
+            # Delete all other transactions
+            duplicates = completed_transactions.exclude(id=first_transaction.id)
+            duplicate_count = duplicates.count()
+            
+            # Calculate the total amount to deduct from the wallet
+            total_to_deduct = sum(t.amount for t in duplicates)
+            
+            # Deduct the duplicate amounts from the wallet
+            if total_to_deduct > 0:
+                wallet.balance -= total_to_deduct
+                wallet.save()
+            
+            # Delete the duplicates
+            duplicates.delete()
+            
+            return duplicate_count, total_to_deduct
+        return 0, Decimal('0.00')
+    except Wallet.DoesNotExist:
+        return 0, Decimal('0.00')
+    except Exception as e:
+        print(f"Error cleaning duplicate transactions: {str(e)}")
+        return 0, Decimal('0.00')
+
+@login_required(login_url='admin_side:admin_login')
+def clean_order_refunds(request, order_id):
+    if not request.user.is_superuser:
+        messages.error(request, 'Access denied, You are not admin')
+        return redirect('admin_side:admin_login')
+    
+    order = get_object_or_404(Order, order_id=order_id)
+    
+    try:
+        # Clean up pending transactions
+        pending_count = clean_pending_refund_transactions(order)
+        
+        # Clean up duplicate completed transactions
+        duplicate_count, total_deducted = clean_duplicate_refund_transactions(order)
+        
+        if pending_count > 0 or duplicate_count > 0:
+            messages.success(
+                request, 
+                f'Successfully cleaned up {pending_count} pending and {duplicate_count} duplicate refund transactions. '
+                f'Wallet balance adjusted by ₹{total_deducted}.'
+            )
+        else:
+            messages.info(request, 'No duplicate or pending refund transactions found for this order.')
+            
+    except Exception as e:
+        messages.error(request, f'Error cleaning up refund transactions: {str(e)}')
+    
+    return redirect('admin_side:order_details', order_id=order_id)
+
+@login_required(login_url='admin_side:admin_login')
+def wallet_history(request):
+    if not request.user.is_superuser:
+        messages.error(request, 'Access denied, You are not admin')
+        return redirect('admin_side:admin_login')
+    
+    # Get filter parameters
+    user_filter = request.GET.get('user', '')
+    type_filter = request.GET.get('type', '')
+    status_filter = request.GET.get('status', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    # Start with all transactions
+    transactions = WalletTransaction.objects.all().select_related('wallet__user').order_by('-created_at')
+    
+    # Apply user filter
+    if user_filter:
+        transactions = transactions.filter(
+            Q(wallet__user__username__icontains=user_filter) |
+            Q(wallet__user__email__icontains=user_filter) |
+            Q(wallet__user__first_name__icontains=user_filter) |
+            Q(wallet__user__last_name__icontains=user_filter)
+        )
+    
+    # Apply transaction type filter
+    if type_filter:
+        transactions = transactions.filter(transaction_type=type_filter)
+    
+    # Apply status filter
+    if status_filter:
+        transactions = transactions.filter(status=status_filter)
+    
+    # Apply date range filter
+    if date_from:
+        try:
+            date_from = timezone.datetime.strptime(date_from, '%Y-%m-%d')
+            transactions = transactions.filter(created_at__gte=date_from)
+        except ValueError:
+            pass
+    
+    if date_to:
+        try:
+            date_to = timezone.datetime.strptime(date_to, '%Y-%m-%d')
+            # Add one day to include the end date
+            date_to = date_to + timezone.timedelta(days=1)
+            transactions = transactions.filter(created_at__lt=date_to)
+        except ValueError:
+            pass
+    
+    # Calculate statistics
+    total_credit = WalletTransaction.objects.filter(
+        transaction_type='CREDIT',
+        status='COMPLETED'
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    
+    total_debit = WalletTransaction.objects.filter(
+        transaction_type='DEBIT',
+        status='COMPLETED'
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    
+    # Pagination
+    paginator = Paginator(transactions, 20)  # Show 20 transactions per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'transactions': page_obj,
+        'total_credit': total_credit,
+        'total_debit': total_debit,
+        'user_filter': user_filter,
+        'type_filter': type_filter,
+        'status_filter': status_filter,
+        'date_from': date_from.strftime('%Y-%m-%d') if isinstance(date_from, timezone.datetime) else '',
+        'date_to': (date_to - timezone.timedelta(days=1)).strftime('%Y-%m-%d') if isinstance(date_to, timezone.datetime) else '',
+        'transaction_types': WalletTransaction.TRANSACTION_TYPES,
+        'transaction_statuses': WalletTransaction.TRANSACTION_STATUS,
+    }
+    
+    return render(request, 'wallet_history.html', context)
+
+@login_required(login_url='admin_side:admin_login')
+def update_wallet_transaction(request, transaction_id):
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'message': 'Access denied'})
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid request method'})
+    
+    try:
+        transaction = get_object_or_404(WalletTransaction, id=transaction_id)
+        new_status = request.POST.get('status')
+        
+        if new_status not in [status[0] for status in WalletTransaction.TRANSACTION_STATUS]:
+            return JsonResponse({'success': False, 'message': 'Invalid status'})
+        
+        # If changing from PENDING to COMPLETED for a CREDIT transaction, add the amount to the wallet
+        if transaction.status == 'PENDING' and new_status == 'COMPLETED' and transaction.transaction_type == 'CREDIT':
+            transaction.wallet.balance += transaction.amount
+            transaction.wallet.save()
+        
+        # If changing from COMPLETED to FAILED/PENDING for a CREDIT transaction, subtract the amount from the wallet
+        elif transaction.status == 'COMPLETED' and new_status != 'COMPLETED' and transaction.transaction_type == 'CREDIT':
+            if transaction.wallet.balance >= transaction.amount:
+                transaction.wallet.balance -= transaction.amount
+                transaction.wallet.save()
+            else:
+                return JsonResponse({
+                    'success': False, 
+                    'message': 'Insufficient wallet balance to revert this transaction'
+                })
+        
+        # Update the transaction status
+        transaction.status = new_status
+        transaction.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Transaction status updated to {new_status}',
+            'new_status': new_status,
+            'new_wallet_balance': str(transaction.wallet.balance)
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+@login_required(login_url='admin_side:admin_login')
+def export_wallet_transactions(request):
+    if not request.user.is_superuser:
+        messages.error(request, 'Access denied, You are not admin')
+        return redirect('admin_side:admin_login')
+    
+    # Get filter parameters
+    user_filter = request.GET.get('user', '')
+    type_filter = request.GET.get('type', '')
+    status_filter = request.GET.get('status', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    # Start with all transactions
+    transactions = WalletTransaction.objects.all().select_related('wallet__user').order_by('-created_at')
+    
+    # Apply user filter
+    if user_filter:
+        transactions = transactions.filter(
+            Q(wallet__user__username__icontains=user_filter) |
+            Q(wallet__user__email__icontains=user_filter) |
+            Q(wallet__user__first_name__icontains=user_filter) |
+            Q(wallet__user__last_name__icontains=user_filter)
+        )
+    
+    # Apply transaction type filter
+    if type_filter:
+        transactions = transactions.filter(transaction_type=type_filter)
+    
+    # Apply status filter
+    if status_filter:
+        transactions = transactions.filter(status=status_filter)
+    
+    # Apply date range filter
+    if date_from:
+        try:
+            date_from = timezone.datetime.strptime(date_from, '%Y-%m-%d')
+            transactions = transactions.filter(created_at__gte=date_from)
+        except ValueError:
+            pass
+    
+    if date_to:
+        try:
+            date_to = timezone.datetime.strptime(date_to, '%Y-%m-%d')
+            # Add one day to include the end date
+            date_to = date_to + timezone.timedelta(days=1)
+            transactions = transactions.filter(created_at__lt=date_to)
+        except ValueError:
+            pass
+    
+    # Create the HttpResponse object with CSV header
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="wallet_transactions_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow(['Transaction ID', 'Date', 'User', 'Email', 'Description', 'Reference ID', 'Amount', 'Type', 'Status'])
+    
+    for transaction in transactions:
+        writer.writerow([
+            transaction.id,
+            transaction.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            transaction.wallet.user.get_full_name() or transaction.wallet.user.username,
+            transaction.wallet.user.email,
+            transaction.description,
+            transaction.reference_id or '',
+            transaction.amount,
+            transaction.get_transaction_type_display(),
+            transaction.get_status_display()
+        ])
+    
+    return response
+
+@login_required(login_url='admin_side:admin_login')
+def admin_transaction_history_view(request):
+    # Get filter parameters from request
+    transaction_type = request.GET.get('transaction_type', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    user_search = request.GET.get('user_search', '')
+    
+    # Initialize empty lists for different transaction types
+    wallet_transactions = []
+    order_transactions = []
+    
+    # Convert date strings to datetime objects if provided
+    if date_from:
+        date_from = datetime.strptime(date_from, '%Y-%m-%d')
+    if date_to:
+        date_to = datetime.strptime(date_to, '%Y-%m-%d')
+        # Add one day to include the entire day
+        date_to = date_to + timedelta(days=1)
+    
+    # Get wallet transactions if needed
+    if not transaction_type or transaction_type == 'wallet':
+        wallet_query = WalletTransaction.objects.select_related('wallet__user').filter(
+            ~Q(status='PENDING')  # Exclude PENDING transactions
+        )
+        
+        # Apply date filters if provided
+        if date_from:
+            wallet_query = wallet_query.filter(created_at__gte=date_from)
+        if date_to:
+            wallet_query = wallet_query.filter(created_at__lt=date_to)
+            
+        # Apply user search if provided
+        if user_search:
+            wallet_query = wallet_query.filter(
+                Q(wallet__user__username__icontains=user_search) |
+                Q(wallet__user__email__icontains=user_search)
+            )
+            
+        # Process wallet transactions to match the common format
+        for transaction in wallet_query:
+            wallet_transactions.append({
+                'id': f"W-{transaction.id}",
+                'user': transaction.wallet.user,
+                'created_at': transaction.created_at,
+                'type': 'wallet',
+                'transaction_type': transaction.transaction_type,
+                'amount': transaction.amount,
+                'status': transaction.status,
+                'description': transaction.description,
+                'source': 'wallet',
+                'order_id': transaction.reference_id
+            })
+    
+    # Get order transactions (online and COD) if needed
+    if not transaction_type or transaction_type == 'online' or transaction_type == 'cod':
+        order_query = Order.objects.select_related('user').filter(
+            ~Q(payment_status='PENDING')  # Exclude PENDING transactions
+        )
+        
+        # Apply specific payment method filter if needed
+        if transaction_type == 'online':
+            order_query = order_query.filter(
+                Q(payment_method__icontains='online') | 
+                Q(payment_method__icontains='razorpay') |
+                Q(payment_method__icontains='wallet')
+            ).exclude(
+                Q(payment_method__icontains='cod') | 
+                Q(payment_method='Cash On Delivery')
+            )
+        elif transaction_type == 'cod':
+            order_query = order_query.filter(
+                Q(payment_method__icontains='cod') | 
+                Q(payment_method='Cash On Delivery')
+            )
+            
+        # Apply date filters if provided
+        if date_from:
+            order_query = order_query.filter(created_at__gte=date_from)
+        if date_to:
+            order_query = order_query.filter(created_at__lt=date_to)
+            
+        # Apply user search if provided
+        if user_search:
+            order_query = order_query.filter(
+                Q(user__username__icontains=user_search) |
+                Q(user__email__icontains=user_search)
+            )
+            
+        # Process order transactions to match the common format
+        for order in order_query:
+            # Improve payment type detection logic
+            payment_type = 'cod' if 'cod' in order.payment_method.lower() or order.payment_method == 'Cash On Delivery' else 'online'
+            order_transactions.append({
+                'id': f"O-{order.id}",
+                'user': order.user,
+                'created_at': order.created_at,
+                'type': payment_type,
+                'transaction_type': order.payment_method,
+                'amount': order.total,
+                'status': order.payment_status,
+                'description': f"Order #{order.order_id}",
+                'source': 'order',
+                'order_id': order.order_id
+            })
+    
+    # Combine all transactions and sort by date (newest first)
+    all_transactions = wallet_transactions + order_transactions
+    all_transactions.sort(key=lambda x: x['created_at'], reverse=True)
+    
+    # Paginate the results
+    paginator = Paginator(all_transactions, 20)  # Show 20 transactions per page
+    page = request.GET.get('page', 1)
+    transactions = paginator.get_page(page)
+    
+    context = {
+        'transactions': transactions,
+        'transaction_type': transaction_type,
+        'date_from': date_from,
+        'date_to': date_to if date_to else None,
+        'user_search': user_search,
+    }
+    
+    return render(request, 'transaction_history.html', context)
+
+@login_required(login_url='admin_side:admin_login')
+def approve_item_return(request, order_id):
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'message': 'Access denied'})
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid request method'})
+    
+    try:
+        with transaction.atomic():
+            order = get_object_or_404(Order, order_id=order_id)
+            item_id = request.POST.get('item_id')
+            condition = request.POST.get('condition', '')
+            notes = request.POST.get('notes', '')
+            
+            if not item_id:
+                return JsonResponse({'success': False, 'message': 'Item ID is required'})
+            
+            # Get the specific item
+            order_item = get_object_or_404(OrderItem, id=item_id, order=order)
+            
+            # Check if item return was requested
+            if order_item.status != 'RETURN_REQUESTED':
+                return JsonResponse({'success': False, 'message': 'No return request found for this item'})
+            
+            # Update item status
+            order_item.status = 'RETURNED'
+            order_item.save()
+            
+            # Increment product stock for the returned item
+            product = order_item.product
+            product.stock += order_item.quantity
+            product.save()
+            
+            # Process refund through wallet
+            wallet, created = Wallet.objects.get_or_create(user=order.user)
+            
+            # Calculate refund amount for this item
+            refund_amount = order_item.total
+            
+            # Check if a completed refund transaction already exists for this item
+            existing_refund = WalletTransaction.objects.filter(
+                wallet=wallet,
+                reference_id=f"{order.order_id}-{order_item.id}",
+                transaction_type='CREDIT',
+                status='COMPLETED'
+            ).exists()
+            
+            if not existing_refund:
+                # Add refund amount to wallet
+                wallet.balance += refund_amount
+                wallet.save()
+                
+                # Create wallet transaction record
+                WalletTransaction.objects.create(
+                    wallet=wallet,
+                    amount=refund_amount,
+                    transaction_type='CREDIT',
+                    status='COMPLETED',
+                    description=f'Refund for returned item {order_item.product.title} (Order #{order.order_id})',
+                    reference_id=f"{order.order_id}-{order_item.id}"
+                )
+                
+                # Delete any pending transactions for this item
+                WalletTransaction.objects.filter(
+                    wallet=wallet,
+                    reference_id=f"{order.order_id}-{order_item.id}",
+                    transaction_type='CREDIT',
+                    status='PENDING'
+                ).delete()
+            
+            # Update order notes
+            note_prefix = f"Item Return Approved [{timezone.now().strftime('%Y-%m-%d %H:%M')}]: "
+            item_note = f"Item '{order_item.product.title}' return approved. Condition: {condition}. Notes: {notes}"
+            
+            if order.notes:
+                order.notes = order.notes + "\n" + note_prefix + item_note
+            else:
+                order.notes = note_prefix + item_note
+            
+            # Check if all items have been returned or rejected
+            all_items_returned = True
+            for item in order.items.all():
+                if item.status not in ['RETURNED', 'RETURN_REJECTED']:
+                    all_items_returned = False
+                    break
+            
+            # If all items have been processed, update order status
+            if all_items_returned:
+                order.status = 'RETURNED'
+                order.returned_at = timezone.now()
+                order.return_requested = False
+            
+            order.save()
+            
+            return JsonResponse({'success': True, 'message': f'Item return approved and ₹{refund_amount} refunded to user\'s wallet'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+@login_required(login_url='admin_side:admin_login')
+def reject_item_return(request, order_id):
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'message': 'Access denied'})
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid request method'})
+    
+    try:
+        with transaction.atomic():
+            order = get_object_or_404(Order, order_id=order_id)
+            item_id = request.POST.get('item_id')
+            notes = request.POST.get('notes', '')
+            
+            if not item_id:
+                return JsonResponse({'success': False, 'message': 'Item ID is required'})
+            
+            # Get the specific item
+            order_item = get_object_or_404(OrderItem, id=item_id, order=order)
+            
+            # Check if item return was requested
+            if order_item.status != 'RETURN_REQUESTED':
+                return JsonResponse({'success': False, 'message': 'No return request found for this item'})
+            
+            # Update item status
+            order_item.status = 'RETURN_REJECTED'
+            order_item.save()
+            
+            # Delete any pending transactions for this item
+            wallet = Wallet.objects.filter(user=order.user).first()
+            if wallet:
+                WalletTransaction.objects.filter(
+                    wallet=wallet,
+                    reference_id=f"{order.order_id}-{order_item.id}",
+                    transaction_type='CREDIT',
+                    status='PENDING'
+                ).delete()
+            
+            # Update order notes
+            note_prefix = f"Item Return Rejected [{timezone.now().strftime('%Y-%m-%d %H:%M')}]: "
+            item_note = f"Item '{order_item.product.title}' return rejected. Reason: {notes}"
+            
+            if order.notes:
+                order.notes = order.notes + "\n" + note_prefix + item_note
+            else:
+                order.notes = note_prefix + item_note
+            
+            # Check if all items have been returned or rejected
+            all_items_processed = True
+            for item in order.items.all():
+                if item.status == 'RETURN_REQUESTED':
+                    all_items_processed = False
+                    break
+            
+            # If all items have been processed, update order status
+            if all_items_processed:
+                order.return_requested = False
+                if all(item.status == 'RETURN_REJECTED' for item in order.items.all()):
+                    # If all were rejected, set order back to delivered
+                    order.status = 'DELIVERED'
+                
+            order.save()
+            
+            return JsonResponse({'success': True, 'message': 'Item return rejected successfully'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+@login_required(login_url='admin_side:admin_login')
+def reviews_management(request):
+    """
+    View to display and manage all product reviews
+    """
+    if not request.user.is_superuser:
+        messages.error(request, 'Access denied, You are not admin')
+        return redirect('admin_side:admin_login')
+    
+    # Get filter parameters
+    rating = request.GET.get('rating', '')
+    product_id = request.GET.get('product', '')
+    date_range = request.GET.get('date_range', '')
+    verified_only = request.GET.get('verified', '')
+    search_query = request.GET.get('search', '')
+    
+    # Base query
+    reviews = Review.objects.all().select_related('user', 'product')
+    
+    # Apply filters
+    if rating:
+        reviews = reviews.filter(rating=rating)
+    
+    if product_id:
+        reviews = reviews.filter(product_id=product_id)
+    
+    if verified_only == 'true':
+        reviews = reviews.filter(verified_purchase=True)
+    
+    if date_range:
+        today = timezone.now().date()
+        if date_range == 'today':
+            reviews = reviews.filter(created_at__date=today)
+        elif date_range == 'week':
+            week_ago = today - timedelta(days=7)
+            reviews = reviews.filter(created_at__date__gte=week_ago)
+        elif date_range == 'month':
+            month_ago = today - timedelta(days=30)
+            reviews = reviews.filter(created_at__date__gte=month_ago)
+    
+    if search_query:
+        reviews = reviews.filter(
+            Q(comment__icontains=search_query) |
+            Q(user__username__icontains=search_query) |
+            Q(product__title__icontains=search_query)
+        )
+    
+    # Order by most recent
+    reviews = reviews.order_by('-created_at')
+    
+    # Calculate statistics
+    total_reviews = Review.objects.count()
+    verified_reviews = Review.objects.filter(verified_purchase=True).count()
+    average_rating = Review.objects.aggregate(avg=Avg('rating'))['avg'] or 0
+    products_with_reviews = Review.objects.values('product').distinct().count()
+    
+    # Get all products for filter dropdown
+    all_products = Product.objects.filter(status='active').order_by('title')
+    
+    # Pagination
+    paginator = Paginator(reviews, 10)  # 10 reviews per page
+    page_number = request.GET.get('page')
+    reviews = paginator.get_page(page_number)
+    
+    context = {
+        'reviews': reviews,
+        'total_reviews': total_reviews,
+        'verified_reviews': verified_reviews,
+        'average_rating': average_rating,
+        'products_with_reviews': products_with_reviews,
+        'all_products': all_products,
+    }
+    
+    return render(request, 'reviews.html', context)
+
+@login_required(login_url='admin_side:admin_login')
+def delete_review(request, review_id):
+    """
+    View to delete a review
+    """
+    if not request.user.is_superuser:
+        messages.error(request, 'Access denied, You are not admin')
+        return redirect('admin_side:admin_login')
+    
+    review = get_object_or_404(Review, id=review_id)
+    
+    try:
+        review.delete()
+        messages.success(request, f"Review by {review.user.username} for '{review.product.title}' deleted successfully")
+    except Exception as e:
+        messages.error(request, f"Failed to delete review: {str(e)}")
+    
+    return redirect('admin_side:reviews')

@@ -185,14 +185,23 @@
                 <a href="{% url 'admin_side:offer_management' %}" class="nav-link {% if '/offers/' in request.path and not '/referrals/' in request.path %}active{% endif %}">
                     <i class="fas fa-gift"></i> Offers
                 </a>
-                <a href="{% url 'admin_side:referral_offer_list' %}" class="nav-link {% if request.resolver_match.url_name == 'referral_offer_list' %}active{% endif %}">
+                <!-- <a href="{% url 'admin_side:referral_offer_list' %}" class="nav-link {% if request.resolver_match.url_name == 'referral_offer_list' %}active{% endif %}">
                     <i class="fas fa-user-friends"></i> Referrals
-                </a>
+                </a> -->
                 <a href="{% url 'admin_side:referral_history' %}" class="nav-link {% if request.resolver_match.url_name == 'referral_history' %}active{% endif %}">
                     <i class="fas fa-history"></i> Referral History
                 </a>
                 <a href="{% url 'admin_side:coupon_management' %}" class="nav-link {% if 'coupons' in request.path %}active{% endif %}">
                     <i class="fas fa-ticket-alt"></i> Coupons
+                </a>
+                <a href="{% url 'admin_side:reviews' %}" class="nav-link {% if 'reviews' in request.path %}active{% endif %}">
+                    <i class="fas fa-star"></i> Reviews
+                </a>
+                <a href="{% url 'admin_side:wallet_history' %}" class="nav-link {% if 'wallet' in request.path %}active{% endif %}">
+                    <i class="fas fa-wallet"></i> Wallet History
+                </a>
+                <a href="{% url 'admin_side:admin_transaction_history' %}" class="nav-link {% if request.resolver_match.url_name == 'admin_transaction_history' %}active{% endif %}">
+                    <i class="fas fa-exchange-alt"></i> Transaction History
                 </a>
             </div>
             <div class="signout-container">

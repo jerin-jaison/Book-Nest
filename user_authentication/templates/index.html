@@ -263,13 +263,13 @@
                 
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                        <li class="nav-item"><a class="nav-link fw-medium" href="#" style="font-family: 'Poppins', sans-serif;">Top Selling</a></li>
-                        <li class="nav-item"><a class="nav-link fw-medium" href="#" style="font-family: 'Poppins', sans-serif;">Upcoming Arrivals</a></li>
+                        <li class="nav-item"><a class="nav-link fw-medium" href="{% url 'product_page' %}" style="font-family: 'Poppins', sans-serif;">Top Selling</a></li>
+                        <li class="nav-item"><a class="nav-link fw-medium" href="#upcoming-arrivals" style="font-family: 'Poppins', sans-serif;">Upcoming Arrivals</a></li>
                         <li class="nav-item"><a class="nav-link fw-medium" href="{% url 'user_profile:wishlist' %}" style="font-family: 'Poppins', sans-serif;">Wishlist</a></li>
                         <li class="nav-item"><a class="nav-link fw-medium" href="{% url 'user_wallet:wallet_dashboard' %}" style="font-family: 'Poppins', sans-serif;">
                             <i class="fas fa-wallet"></i> Wallet
                         </a></li>
-                        <li class="nav-item"><a class="nav-link fw-medium" href="#" style="font-family: 'Poppins', sans-serif;">Contact</a></li>
+                        <li class="nav-item"><a class="nav-link fw-medium" href="{% url 'contact' %}" style="font-family: 'Poppins', sans-serif;">Contact</a></li>
                         <!-- Filter Button -->
                         <!-- <li class="nav-item">
                             <button class="nav-link fw-medium" type="button" data-bs-toggle="offcanvas" data-bs-target="#filterOffcanvas" aria-controls="filterOffcanvas" style="font-family: 'Poppins', sans-serif; border: none; background: none;">
@@ -321,13 +321,13 @@
                                 <li><a class="dropdown-item" href="{% url 'user_profile:profile' %}">My Profile</a></li>
                                 <li><a class="dropdown-item" href="{% url 'user_profile:orders_list' %}">My Orders</a></li>
                                 <li><a class="dropdown-item" href="{% url 'user_wallet:wallet_dashboard' %}">My Wallet</a></li>
-                                <li><a class="dropdown-item" href="#" data-bs-toggle="offcanvas" data-bs-target="#filterOffcanvas">Filter</a></li>
-                                <li><hr class="dropdown-divider"></li>
+                                {% comment %} <li><a class="dropdown-item" href="#" data-bs-toggle="offcanvas" data-bs-target="#filterOffcanvas">Filter</a></li>
+                                <li><hr class="dropdown-divider"></li> {% endcomment %}
                                 <li>
-                                    <form action="{% url 'signout' %}" method="post" class="px-2">
+                                    {% comment %} <form action="{% url 'signout' %}" method="post" class="px-2">
                                         {% csrf_token %}
                                         <button type="submit" class="btn btn-outline-danger w-100">Sign Out</button>
-                                    </form>
+                                    </form> {% endcomment %}
                                 </li>
                             </ul>
                         </div>
@@ -515,7 +515,7 @@
     </section>
 
     <!-- Upcoming Section -->
-    <section class="py-5 bg-white">
+    <section class="py-5 bg-white" id="upcoming-arrivals">
         <div class="container">
             <h2 class="text-center mb-5 fw-bold" style="font-size: 3rem; font-family: 'Impact', sans-serif;">Upcoming Arrivals</h2>
             <div class="row row-cols-2 row-cols-md-4 justify-content-center g-4">

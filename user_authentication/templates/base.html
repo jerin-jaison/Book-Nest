@@ -314,7 +314,7 @@
                         </a>
                     </li>
                     <li class="nav-item mx-1">
-                        <a class="nav-link" href="#">Contact</a>
+                        <a class="nav-link" href="{% url 'contact' %}" >Contact</a>
                     </li>
                     <li class="nav-item mx-1">
                         <a class="nav-link {% if request.resolver_match.url_name == 'wallet_dashboard' %}active{% endif %}" href="{% url 'user_wallet:wallet_dashboard' %}">
@@ -372,13 +372,12 @@
                             <li><a class="dropdown-item" href="{% url 'user_profile:orders_list' %}">My Orders</a></li>
                             <li><a class="dropdown-item" href="{% url 'user_wallet:wallet_dashboard' %}">My Wallet</a></li>
                             <li><a class="dropdown-item" href="{% url 'user_profile:my_coupons' %}">Coupons & Referrals</a></li>
-                            <li><a class="dropdown-item" href="#" data-bs-toggle="offcanvas" data-bs-target="#filterOffcanvas">Filter</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
-                                <form action="{% url 'signout' %}" method="post" class="px-2">
+                                {% comment %} <form action="{% url 'signout' %}" method="post" class="px-2">
                                     {% csrf_token %}
                                     <button type="submit" class="btn btn-outline-danger w-100">Logout</button>
-                                </form>
+                                </form> {% endcomment %}
                             </li>
                         </ul>
                     </div>
@@ -444,112 +443,33 @@
         </div>
     </footer>
 
-    <!-- Filter Offcanvas -->
-    <div class="offcanvas offcanvas-start" tabindex="-1" id="filterOffcanvas" aria-labelledby="filterOffcanvasLabel" style="max-width: 350px;">
-        <div class="offcanvas-header border-bottom">
-            <h5 class="offcanvas-title" id="filterOffcanvasLabel" style="font-family: 'Playfair Display', serif; color: #8B4513;">
-                <i class="fas fa-filter me-2"></i>Filter Books
-            </h5>
-            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-        </div>
-        <div class="offcanvas-body">
-            <form method="GET" action="{% url 'product_page' %}" id="filterForm">
-                <!-- Search -->
-                <div class="mb-4">
-                    <label class="form-label fw-medium" style="font-family: 'Poppins', sans-serif;">Search</label>
-                    <input type="text" class="form-control" name="search" value="{{ search_query }}" 
-                           placeholder="Search by title, author, or ISBN..." style="font-family: 'Poppins', sans-serif;">
-                </div>
-
-                <!-- Categories -->
-                <div class="mb-4">
-                    <label class="form-label fw-medium" style="font-family: 'Poppins', sans-serif;">Category</label>
-                    <select class="form-select" name="category" style="font-family: 'Poppins', sans-serif;">
-                        <option value="">All Categories</option>
-                        <option value="self-help" {% if selected_category == 'self-help' %}selected{% endif %}>Self-Help</option>
-                        <option value="comics" {% if selected_category == 'comics' %}selected{% endif %}>Comics</option>
-                        <option value="sci-fi" {% if selected_category == 'sci-fi' %}selected{% endif %}>Science Fiction</option>
-                        <option value="fiction" {% if selected_category == 'fiction' %}selected{% endif %}>Fiction</option>
-                        <option value="non-fiction" {% if selected_category == 'non-fiction' %}selected{% endif %}>Non-Fiction</option>
-                        <option value="mystery" {% if selected_category == 'mystery' %}selected{% endif %}>Mystery & Thriller</option>
-                        <option value="romance" {% if selected_category == 'romance' %}selected{% endif %}>Romance</option>
-                        <option value="biography" {% if selected_category == 'biography' %}selected{% endif %}>Biography</option>
-                        {% for category in categories %}
-                            {% if category.id|stringformat:"s" != 'self-help' and category.id|stringformat:"s" != 'comics' and category.id|stringformat:"s" != 'sci-fi' and category.id|stringformat:"s" != 'fiction' and category.id|stringformat:"s" != 'non-fiction' and category.id|stringformat:"s" != 'mystery' and category.id|stringformat:"s" != 'romance' and category.id|stringformat:"s" != 'biography' %}
-                            <option value="{{ category.id }}" {% if category.id|stringformat:"s" == selected_category %}selected{% endif %}>
-                                {{ category.name }}
-                            </option>
-                            {% endif %}
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- Language -->
-                <div class="mb-4">
-                    <label class="form-label fw-medium" style="font-family: 'Poppins', sans-serif;">Language</label>
-                    <select class="form-select" name="language" style="font-family: 'Poppins', sans-serif;">
-                        <option value="">All Languages</option>
-                        
-                        <!-- Most Common -->
-                        <optgroup label="Most Common">
-                            <option value="english" {% if selected_language == 'english' %}selected{% endif %}>English</option>
-                            
-                        </optgroup>
-                        
-                        <!-- Indian Languages -->
-                        <optgroup label="Indian Languages">
-                            <option value="tamil" {% if selected_language == 'tamil' %}selected{% endif %}>Tamil</option>
-                            <option value="telugu" {% if selected_language == 'telugu' %}selected{% endif %}>Telugu</option>
-                            <option value="malayalam" {% if selected_language == 'malayalam' %}selected{% endif %}>Malayalam</option>
-                            <option value="hindi" {% if selected_language == 'hindi' %}selected{% endif %}>Hindi</option>
-                        </optgroup>
-                    </select>
-                </div>
-
-                <!-- Price Range -->
-                <div class="mb-4">
-                    <label class="form-label fw-medium" style="font-family: 'Poppins', sans-serif;">Price Range</label>
-                    <div class="row g-2">
-                        <div class="col">
-                            <input type="number" class="form-control" name="min_price" value="{{ min_price }}" 
-                                   placeholder="Min" min="0" style="font-family: 'Poppins', sans-serif;">
-                        </div>
-                        <div class="col">
-                            <input type="number" class="form-control" name="max_price" value="{{ max_price }}" 
-                                   placeholder="Max" min="0" style="font-family: 'Poppins', sans-serif;">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sort By -->
-                <div class="mb-4">
-                    <label class="form-label fw-medium" style="font-family: 'Poppins', sans-serif;">Sort By</label>
-                    <select class="form-select" name="sort_by" style="font-family: 'Poppins', sans-serif;">
-                        <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Title (A-Z)</option>
-                        <option value="price_low" {% if sort_by == 'price_low' %}selected{% endif %}>Price: Low to High</option>
-                        <option value="price_high" {% if sort_by == 'price_high' %}selected{% endif %}>Price: High to Low</option>
-                        <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest First</option>
-                    </select>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="d-grid gap-2">
-                    <button type="submit" class="btn btn-primary" style="font-family: 'Poppins', sans-serif;">
-                        Apply Filters
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" onclick="resetFilters()" 
-                            style="font-family: 'Poppins', sans-serif;">
-                        Reset Filters
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <!-- JavaScript Libraries -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Prevent Back Button Navigation After Logout -->
+    <script>
+        // Check if this page was accessed after a logout
+        if (window.performance && window.performance.navigation.type === window.performance.navigation.TYPE_BACK_FORWARD) {
+            // If we detect browser back button after logout (user isn't authenticated)
+            {% if not user.is_authenticated %}
+                // Prevent going back to the authenticated page by redirecting to home
+                window.location.href = "{% url 'home_page' %}";
+            {% endif %}
+        }
+        
+        // Also disable browser caching for authenticated pages
+        {% if user.is_authenticated %}
+            window.onpageshow = function(event) {
+                if (event.persisted) {
+                    // Force refresh the page if it was loaded from cache (back/forward)
+                    window.location.reload();
+                }
+            };
+        {% endif %}
+    </script>
+    
     {% block extra_js %}{% endblock %}
 </body>
 </html>

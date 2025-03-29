@@ -1,0 +1,591 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-color: #8B4513;
+        --primary-hover: #6b3410;
+        --light-brown: #f5e6d3;
+        --bg-light: #fafafa;
+        --btn-shadow: rgba(139, 69, 19, 0.2);
+    }
+
+    .contact-hero {
+        background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('{% static "images/contact-bg.jpg" %}');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        height: 400px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        text-align: center;
+        margin-bottom: 4rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .contact-hero::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, rgba(139, 69, 19, 0.3), rgba(107, 52, 16, 0.3));
+        z-index: 1;
+    }
+
+    .contact-hero .container {
+        position: relative;
+        z-index: 2;
+    }
+
+    .contact-hero h1 {
+        font-size: 3.5rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        font-family: 'Playfair Display', serif;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        animation: fadeInDown 1s ease-out;
+    }
+
+    .contact-hero p {
+        font-size: 1.3rem;
+        opacity: 0.9;
+        max-width: 700px;
+        margin: 0 auto;
+        line-height: 1.6;
+        animation: fadeInUp 1s ease-out;
+    }
+
+    .contact-info-card {
+        background: white;
+        border-radius: 20px;
+        padding: 2.5rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        transition: all 0.4s ease;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(139, 69, 19, 0.1);
+    }
+
+    .contact-info-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 5px;
+        background: linear-gradient(90deg, var(--primary-color), var(--primary-hover));
+        transform: scaleX(0);
+        transition: transform 0.4s ease;
+    }
+
+    .contact-info-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .contact-info-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+    }
+
+    .contact-icon {
+        width: 70px;
+        height: 70px;
+        background: var(--light-brown);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 2rem;
+        position: relative;
+        transition: all 0.3s ease;
+    }
+
+    .contact-icon::after {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 2px solid var(--primary-color);
+        animation: pulse 2s infinite;
+    }
+
+    .contact-icon i {
+        font-size: 1.8rem;
+        color: var(--primary-color);
+        transition: all 0.3s ease;
+    }
+
+    .contact-info-card:hover .contact-icon {
+        background: var(--primary-color);
+    }
+
+    .contact-info-card:hover .contact-icon i {
+        color: white;
+    }
+
+    .contact-info-card h3 {
+        color: var(--primary-color);
+        font-size: 1.8rem;
+        margin-bottom: 1.2rem;
+        font-family: 'Playfair Display', serif;
+        position: relative;
+        padding-bottom: 0.5rem;
+    }
+
+    .contact-info-card h3::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 50px;
+        height: 3px;
+        background: var(--primary-color);
+        transition: width 0.3s ease;
+    }
+
+    .contact-info-card:hover h3::after {
+        width: 100px;
+    }
+
+    .contact-info-card p {
+        color: #666;
+        margin-bottom: 0;
+        line-height: 1.6;
+        font-size: 1.1rem;
+    }
+
+    .contact-form {
+        background: white;
+        border-radius: 20px;
+        padding: 3rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .contact-form::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 5px;
+        background: linear-gradient(90deg, var(--primary-color), var(--primary-hover));
+    }
+
+    .contact-form h2 {
+        color: var(--primary-color);
+        font-size: 2.2rem;
+        margin-bottom: 2rem;
+        text-align: center;
+        font-family: 'Playfair Display', serif;
+        position: relative;
+        padding-bottom: 1rem;
+    }
+
+    .contact-form h2::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100px;
+        height: 3px;
+        background: var(--primary-color);
+    }
+
+    .form-control {
+        border-radius: 12px;
+        padding: 1rem 1.2rem;
+        border: 2px solid #eee;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+        font-size: 1rem;
+    }
+
+    .form-control:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem var(--btn-shadow);
+    }
+
+    .form-label {
+        color: #555;
+        font-weight: 500;
+        margin-bottom: 0.8rem;
+        font-size: 1.1rem;
+    }
+
+    .btn-submit {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 1rem 2.5rem;
+        border: none;
+        border-radius: 30px;
+        font-weight: 500;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px var(--btn-shadow);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-submit::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: 0.5s;
+    }
+
+    .btn-submit:hover::before {
+        left: 100%;
+    }
+
+    .btn-submit:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-3px);
+        color: white;
+        box-shadow: 0 6px 20px var(--btn-shadow);
+    }
+
+    .map-container {
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        margin-top: 3rem;
+        position: relative;
+    }
+
+    .map-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: linear-gradient(90deg, var(--primary-color), var(--primary-hover));
+        z-index: 1;
+    }
+
+    .map-container iframe {
+        width: 100%;
+        height: 400px;
+        border: none;
+    }
+
+    .social-links {
+        display: flex;
+        gap: 1.2rem;
+        margin-top: 1.5rem;
+    }
+
+    .social-link {
+        width: 45px;
+        height: 45px;
+        background: var(--light-brown);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--primary-color);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .social-link::before {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background: var(--primary-color);
+        transform: scale(0);
+        transition: transform 0.3s ease;
+        border-radius: 50%;
+    }
+
+    .social-link i {
+        position: relative;
+        z-index: 1;
+        transition: all 0.3s ease;
+    }
+
+    .social-link:hover::before {
+        transform: scale(1);
+    }
+
+    .social-link:hover i {
+        color: white;
+        transform: rotate(360deg);
+    }
+
+    @keyframes fadeInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+            opacity: 1;
+        }
+        100% {
+            transform: scale(1.2);
+            opacity: 0;
+        }
+    }
+
+    /* Toast Notifications */
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+    }
+
+    .toast {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        margin-bottom: 15px;
+        padding: 15px 20px;
+        animation: slideIn 0.3s ease-out;
+        border: none;
+        transition: all 0.3s ease;
+        max-width: 400px;
+    }
+
+    .toast.success {
+        border-left: 4px solid #28a745;
+    }
+
+    .toast.error {
+        border-left: 4px solid #dc3545;
+    }
+
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="contact-hero">
+    <div class="container">
+        <h1>Get in Touch</h1>
+        <p>Have questions about our books or services? We're here to help. Send us a message and we'll respond as soon as possible.</p>
+    </div>
+</div>
+
+<div class="container mb-5">
+    <div class="row g-4">
+        <!-- Contact Information Cards -->
+        {% comment %} <div class="col-md-4">
+            <div class="contact-info-card">
+                <div class="contact-icon">
+                    <i class="fas fa-map-marker-alt"></i>
+                </div>
+                <h3>Visit Us</h3>
+                <p>123 Book Street, Reading Lane<br>Book City, BC 12345</p>
+                <div class="social-links">
+                    <a href="#" class="social-link" title="Facebook"><i class="fab fa-facebook-f"></i></a>
+                    <a href="#" class="social-link" title="Twitter"><i class="fab fa-twitter"></i></a>
+                    <a href="#" class="social-link" title="Instagram"><i class="fab fa-instagram"></i></a>
+                    <a href="#" class="social-link" title="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="contact-info-card">
+                <div class="contact-icon">
+                    <i class="fas fa-phone"></i>
+                </div>
+                <h3>Call Us</h3>
+                <p>+1 (555) 123-4567<br>+1 (555) 987-6543</p>
+                <div class="social-links">
+                    <a href="#" class="social-link" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                    <a href="#" class="social-link" title="Telegram"><i class="fab fa-telegram"></i></a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="contact-info-card">
+                <div class="contact-icon">
+                    <i class="fas fa-envelope"></i>
+                </div>
+                <h3>Email Us</h3>
+                <p>support@booknest.com<br>info@booknest.com</p>
+                <div class="social-links">
+                    <a href="#" class="social-link" title="Email"><i class="fas fa-envelope"></i></a>
+                    <a href="#" class="social-link" title="Skype"><i class="fab fa-skype"></i></a>
+                </div>
+            </div>
+        </div> {% endcomment %}
+
+        <!-- Contact Form -->
+        <div class="col-lg-8 mx-auto mt-4">
+            <div class="contact-form">
+                <h2>Send us a Message</h2>
+                <form method="POST" action="{% url 'contact' %}">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="name" class="form-label">Your Name</label>
+                            <input type="text" class="form-control" id="name" name="name" required placeholder="Enter your name">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="email" class="form-label">Your Email</label>
+                            <input type="email" class="form-control" id="email" name="email" required placeholder="Enter your email">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="subject" class="form-label">Subject</label>
+                        <input type="text" class="form-control" id="subject" name="subject" required placeholder="Enter message subject">
+                    </div>
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Your Message</label>
+                        <textarea class="form-control" id="message" name="message" rows="5" required placeholder="Enter your message here..."></textarea>
+                    </div>
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-submit">
+                            <i class="fas fa-paper-plane me-2"></i>Send Message
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Map -->
+        <div class="col-12">
+            <div class="map-container">
+                <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d31443.39896820155!2d76.70019124242212!3d9.898526999993797!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3b07c40a315b6705%3A0x4a8f3d2b78b03d27!2sThodupuzha%2C%20Kerala!5e0!3m2!1sen!2sin!4v1742907348465!5m2!1sen!2sin" 
+                        allowfullscreen="" loading="lazy"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Form submission handling
+    const form = document.querySelector('.contact-form form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Get form data
+            const formData = new FormData(form);
+            
+            // Show loading state
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending...';
+            submitBtn.disabled = true;
+            
+            // Send form data
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Show success message
+                    showToast('Success', 'Your message has been sent successfully!', 'success');
+                    form.reset();
+                } else {
+                    // Show error message
+                    showToast('Error', data.message || 'Failed to send message. Please try again.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error', 'An unexpected error occurred. Please try again.', 'error');
+            })
+            .finally(() => {
+                // Reset button state
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            });
+        });
+    }
+});
+
+function showToast(title, message, type = 'success') {
+    const toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        const newContainer = document.createElement('div');
+        newContainer.className = 'toast-container';
+        document.body.appendChild(newContainer);
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.style.opacity = '1';
+    toast.style.minWidth = '350px';
+    toast.style.zIndex = '9999';
+    
+    // Create a unique ID for the toast
+    const toastId = 'toast-' + Date.now();
+    toast.id = toastId;
+    
+    toast.innerHTML = `
+        <div class="toast-header d-flex justify-content-between align-items-center">
+            <strong class="me-auto">${title}</strong>
+            <button type="button" class="btn-close" onclick="document.getElementById('${toastId}').remove()"></button>
+        </div>
+        <div class="toast-body">${message}</div>
+    `;
+    
+    toastContainer.appendChild(toast);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (document.getElementById(toastId)) {
+                document.getElementById(toastId).remove();
+            }
+        }, 300);
+    }, 5000);
+}
+</script>
+{% endblock %}

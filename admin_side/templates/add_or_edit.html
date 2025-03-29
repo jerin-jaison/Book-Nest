@@ -1,36 +1,14 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BookNest - Product Management</title>
-    <!-- Bootstrap CSS -->
+{% extends 'admin_sidebar.html' %}
+{% load static %}
+
+{% block extra_css %}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        .sidebar {
-            min-height: 100vh;
-            background-color: #f8f9fa;
-            border-right: 1px solid #dee2e6;
-            position: relative;
-        }
-        .nav-link {
-            color: #333;
-            padding: 0.8rem 1rem;
-            transition: all 0.3s ease;
-        }
-        .nav-link:hover {
-            background-color: #e9ecef;
-        }
-        .nav-link.active {
-            background-color: #75530d;
-            color: white;
-        }
         .form-card {
             border-radius: 10px;
             box-shadow: 0 0 15px rgba(0,0,0,0.1);
             background-color: #fff;
+        margin-top: 20px;
         }
         .preview-image {
             width: 150px;
@@ -54,51 +32,28 @@
             cursor: pointer;
         }
         .page-header {
-            color: #75530d;
+        color: #8B4513;
             border-bottom: 2px solid #f0f0f0;
             padding-bottom: 0.5rem;
         }
+    .container-fluid {
+        padding: 20px;
+        min-height: calc(100vh - 40px);
+        background-color: #f8f9fc;
+    }
     </style>
-</head>
-<body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-2 sidebar py-3">
-                <div class="sidebar-header">
-                    <i class="bi bi-book"></i>
-                    <h3 class="mb-0">BookNest</h3>
-                </div>
-                <nav class="nav flex-column">
-                    <a class="nav-link" href="{% url 'admin_side:admin_home' %}"><i class="bi bi-grid me-2"></i>Dashboard</a>
-                    <a class="nav-link active" href="{% url 'admin_side:product_list' %}"><i class="bi bi-box me-2"></i>Products</a>
-                    <a class="nav-link" href="#"><i class="bi bi-cart me-2"></i>Orders</a>
-                    <a class="nav-link" href="{% url 'admin_side:customer_management' %}"><i class="bi bi-people me-2"></i>Customers</a>
-                    <a class="nav-link" href="#"><i class="bi bi-star me-2"></i>Reviews</a>
-                    <a class="nav-link" href="#"><i class="bi bi-tag me-2"></i>Offers</a>
-                    <a class="nav-link" href="#"><i class="bi bi-ticket me-2"></i>Coupon</a>
-                    <a class="nav-link" href="#"><i class="bi bi-image me-2"></i>Banner management</a>
-                    <a class="nav-link" href="{% url 'admin_side:category_management' %}"><i class="bi bi-folder me-2"></i>Category</a>
-                    <a class="nav-link" href="#"><i class="bi bi-credit-card me-2"></i>Payment</a>
-                </nav>
-                
-                <div class="signout-container">
-                    <a href="{% url 'admin_side:admin_logout' %}" class="btn-signout">
-                        <i class="bi bi-box-arrow-left me-2"></i> Sign Out
-                    </a>
-                </div>
-            </div>
+{% endblock %}
 
-            <!-- Main Content -->
-            <div class="col-md-10 py-4 px-4">
+{% block content %}
+    <div class="container-fluid">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2 class="page-header">
-                        <i class="bi bi-pencil-square me-2"></i>
+            <i class="fas fa-pencil-alt me-2"></i>
                         {% if product %}Edit Product{% else %}Add New Product{% endif %}
                     </h2>
                     <div>
                         <a href="{% url 'admin_side:product_list' %}" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left me-1"></i> Back to Products
+                <i class="fas fa-arrow-left me-1"></i> Back to Products
                         </a>
                     </div>
                 </div>
@@ -146,8 +101,21 @@
                                     </div>
                                     <div class="col-md-4">
                                         <div class="mb-3">
-                                            <label for="discountPrice" class="form-label">Discount Price (₹)</label>
-                                            <input type="number" class="form-control" id="discountPrice" name="discount_price" step="0.01" value="{{ product.discount_price }}">
+                                            <label for="discountPrice" class="form-label">
+                                                Discount Price (₹)
+                                                {% if product.discount_price %}
+                                                <span class="badge bg-danger ms-2">
+                                                    Currently: ₹{{ product.discount_price|floatformat:2 }}
+                                                </span>
+                                                {% endif %}
+                                            </label>
+                                            <div class="input-group">
+                                                <input type="number" class="form-control" id="discountPrice" name="discount_price" step="0.01" value="{{ product.discount_price|default_if_none:'' }}">
+                                                <span class="input-group-text bg-light">
+                                        <i class="fas fa-tag text-danger"></i>
+                                                </span>
+                                            </div>
+                                            <small class="text-muted">Add a discounted price to show savings to customers</small>
                                         </div>
                                     </div>
                                     <div class="col-md-4">
@@ -208,7 +176,7 @@
                                     <div class="image-preview-container">
                                         <img src="{{ image.image.url }}" class="preview-image">
                                         <div class="remove-image" data-id="{{ image.id }}">
-                                            <i class="bi bi-x"></i>
+                                <i class="fas fa-times"></i>
                                         </div>
                                     </div>
                                     {% endfor %}
@@ -254,19 +222,16 @@
                         <div class="d-flex justify-content-end gap-2">
                             <button type="button" class="btn btn-outline-secondary">Cancel</button>
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-save me-1"></i>
+                    <i class="fas fa-save me-1"></i>
                                 {% if product %}Update Product{% else %}Save Product{% endif %}
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
-        </div>
-    </div>
+{% endblock %}
 
-    <!-- Bootstrap JS Bundle with Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+{% block extra_js %}
     <script>
         // Image preview functionality
         document.getElementById('coverImage').addEventListener('change', function(e) {
@@ -296,6 +261,49 @@
                 }
             });
         });
+
+        // Discount price validation
+        const priceInput = document.getElementById('price');
+        const discountPriceInput = document.getElementById('discountPrice');
+        
+        discountPriceInput.addEventListener('input', function() {
+            validateDiscountPrice();
+        });
+        
+        priceInput.addEventListener('input', function() {
+            validateDiscountPrice();
+        });
+        
+        function validateDiscountPrice() {
+            const price = parseFloat(priceInput.value);
+            const discountPrice = parseFloat(discountPriceInput.value);
+            
+            if (isNaN(discountPrice) || discountPrice === 0) {
+                discountPriceInput.setCustomValidity('');
+                return;
+            }
+            
+            if (discountPrice >= price) {
+                discountPriceInput.setCustomValidity('Discount price must be less than regular price');
+            } else {
+                discountPriceInput.setCustomValidity('');
+                
+                // Show savings
+                const savings = price - discountPrice;
+                const savingsPercent = Math.round((savings / price) * 100);
+                
+                // Add a visual cue about the savings
+                const smallText = discountPriceInput.nextElementSibling;
+                smallText.innerHTML = `Savings for customers: <strong>₹${savings.toFixed(2)}</strong> (${savingsPercent}% off)`;
+                smallText.classList.add('text-success');
+            }
+            
+            discountPriceInput.reportValidity();
+        }
+        
+        // Initial validation
+        if (discountPriceInput.value) {
+            validateDiscountPrice();
+        }
     </script>
-</body>
-</html>
+{% endblock %}

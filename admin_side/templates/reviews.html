@@ -1,0 +1,705 @@
+{% extends 'admin_sidebar.html' %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-color: #8B4513;
+        --primary-hover: #6b3410;
+        --light-brown: #f5e6d3;
+        --bg-light: #fafafa;
+        --btn-shadow: rgba(139, 69, 19, 0.2);
+    }
+
+    .review-card {
+        border-radius: 15px;
+        background-color: #fff;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+    
+    .review-card:hover {
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        transform: translateY(-5px);
+    }
+    
+    .review-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #f0f0f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .review-body {
+        padding: 1.5rem;
+    }
+    
+    .review-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid #f0f0f0;
+        background-color: #f9f9f9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .review-product {
+        font-weight: 600;
+        color: var(--primary-color);
+        margin-bottom: 0.25rem;
+    }
+    
+    .review-user {
+        color: #768192;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+    }
+    
+    .review-date {
+        font-size: 0.85rem;
+        color: #8a93a2;
+    }
+    
+    .review-rating {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+    
+    .review-rating-date {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .star-rating {
+        color: #ffc107;
+        margin-right: 0.5rem;
+    }
+    
+    .review-content {
+        color: #4f5d73;
+        line-height: 1.6;
+    }
+    
+    .verified-badge {
+        display: inline-block;
+        background-color: #2eb85c;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 50px;
+        font-size: 0.7rem;
+        margin-left: 0.5rem;
+    }
+    
+    .user-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background-color: var(--light-brown);
+        color: var(--primary-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        margin-right: 0.5rem;
+        font-size: 0.8rem;
+    }
+    
+    .status-pill {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 50px;
+        font-weight: 500;
+        font-size: 0.75rem;
+    }
+    
+    .pill-success {
+        background-color: rgba(46, 184, 92, 0.1);
+        color: #2eb85c;
+    }
+    
+    .pill-warning {
+        background-color: rgba(255, 193, 7, 0.1);
+        color: #f9b115;
+    }
+    
+    .review-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+        color: #768192;
+        border: none;
+        transition: all 0.2s;
+    }
+    
+    .action-btn:hover {
+        background-color: #e8ebf0;
+    }
+    
+    .action-btn.btn-delete:hover {
+        background-color: #f9e3e3;
+        color: #e55353;
+    }
+
+    .stats-card {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+        background-color: #fff;
+        margin-bottom: 1.5rem;
+    }
+
+    .stats-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .summary-icon {
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        font-size: 1.5rem;
+        margin-right: 1rem;
+    }
+    
+    .bg-light-primary {
+        background-color: var(--light-brown);
+        color: var(--primary-color);
+    }
+    
+    .bg-light-success {
+        background-color: #d1e7dd;
+        color: #0f5132;
+    }
+    
+    .bg-light-warning {
+        background-color: #fff3cd;
+        color: #664d03;
+    }
+    
+    .bg-light-info {
+        background-color: #cff4fc;
+        color: #055160;
+    }
+    
+    .stats-info h3 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        margin-bottom: 0.25rem;
+    }
+    
+    .stats-info p {
+        font-size: 0.9rem;
+        color: #768192;
+        margin-bottom: 0;
+    }
+    
+    .filter-section {
+        background-color: #fff;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .filter-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    
+    .filter-title {
+        font-weight: 600;
+        color: var(--primary-color);
+        margin-bottom: 0;
+    }
+    
+    .filter-clear {
+        color: var(--primary-color);
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+    
+    .filter-form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: flex-end;
+    }
+    
+    .filter-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .filter-label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #768192;
+        margin-bottom: 0.5rem;
+    }
+    
+    .filter-select, .filter-input {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #d8dbe0;
+        border-radius: 25px;
+        color: #4f5d73;
+        background-color: #fff;
+        transition: all 0.3s ease;
+    }
+    
+    .filter-select:focus, .filter-input:focus {
+        border-color: var(--primary-color);
+        outline: none;
+        box-shadow: 0 0 0 0.25rem rgba(139, 69, 19, 0.25);
+    }
+    
+    .filter-btn {
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        padding: 0.5rem 1.5rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.3s, transform 0.3s;
+        box-shadow: 0 4px 6px var(--btn-shadow);
+    }
+    
+    .filter-btn:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 10px var(--btn-shadow);
+    }
+
+    .btn-custom {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 8px 20px;
+        border: none;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px var(--btn-shadow);
+    }
+
+    .btn-custom:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 10px var(--btn-shadow);
+        color: white;
+    }
+
+    .btn-outline {
+        background-color: transparent;
+        color: var(--primary-color);
+        border: 2px solid var(--primary-color);
+        padding: 8px 20px;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-outline:hover {
+        background-color: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+    }
+    
+    .review-pagination {
+        display: flex;
+        justify-content: center;
+        margin-top: 2rem;
+    }
+    
+    .review-pagination .page-item .page-link {
+        color: var(--primary-color);
+        border-color: #dee2e6;
+        margin: 0 5px;
+        border-radius: 25px;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    }
+    
+    .review-pagination .page-item.active .page-link {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+        color: white;
+    }
+    
+    .review-pagination .page-item .page-link:hover {
+        background-color: var(--light-brown);
+        color: var(--primary-color);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .modal-content {
+        border-radius: 15px;
+        overflow: hidden;
+        border: none;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .modal-header {
+        border-bottom: 1px solid #f0f0f0;
+        background-color: var(--light-brown);
+        color: var(--primary-color);
+    }
+    
+    .modal-footer {
+        border-top: 1px solid #f0f0f0;
+        background-color: #f9f9f9;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0" style="color: var(--primary-color);">
+            <i class="fas fa-star me-2"></i>Reviews Management
+        </h2>
+        <div>
+            <a href="{% url 'admin_side:admin_home' %}" class="btn btn-outline">
+                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+            </a>
+        </div>
+    </div>
+    
+    <!-- Stats Row -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-4 mb-md-0">
+            <div class="stats-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="summary-icon bg-light-primary">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="stats-info">
+                            <h3>{{ total_reviews }}</h3>
+                            <p>Total Reviews</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-4 mb-md-0">
+            <div class="stats-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="summary-icon bg-light-success">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stats-info">
+                            <h3>{{ verified_reviews }}</h3>
+                            <p>Verified Reviews</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-4 mb-md-0">
+            <div class="stats-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="summary-icon bg-light-warning">
+                            <i class="fas fa-star-half-alt"></i>
+                        </div>
+                        <div class="stats-info">
+                            <h3>{{ average_rating|floatformat:1 }}</h3>
+                            <p>Average Rating</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="summary-icon bg-light-info">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <div class="stats-info">
+                            <h3>{{ products_with_reviews }}</h3>
+                            <p>Products With Reviews</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filter Section -->
+    <div class="card stats-card mb-4">
+        <div class="card-body">
+            <div class="filter-header">
+                <h5 class="filter-title">Filter Reviews</h5>
+                <a href="{% url 'admin_side:reviews' %}" class="filter-clear">Clear Filters</a>
+            </div>
+            
+            <form method="GET" class="filter-form">
+                <div class="filter-group">
+                    <label class="filter-label">Rating</label>
+                    <select name="rating" class="filter-select">
+                        <option value="">All Ratings</option>
+                        <option value="5" {% if request.GET.rating == '5' %}selected{% endif %}>5 Stars</option>
+                        <option value="4" {% if request.GET.rating == '4' %}selected{% endif %}>4 Stars</option>
+                        <option value="3" {% if request.GET.rating == '3' %}selected{% endif %}>3 Stars</option>
+                        <option value="2" {% if request.GET.rating == '2' %}selected{% endif %}>2 Stars</option>
+                        <option value="1" {% if request.GET.rating == '1' %}selected{% endif %}>1 Star</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Product</label>
+                    <select name="product" class="filter-select">
+                        <option value="">All Products</option>
+                        {% for product in all_products %}
+                        <option value="{{ product.id }}" {% if request.GET.product == product.id|stringformat:"i" %}selected{% endif %}>{{ product.title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Date Range</label>
+                    <select name="date_range" class="filter-select">
+                        <option value="">All Time</option>
+                        <option value="today" {% if request.GET.date_range == 'today' %}selected{% endif %}>Today</option>
+                        <option value="week" {% if request.GET.date_range == 'week' %}selected{% endif %}>Last 7 Days</option>
+                        <option value="month" {% if request.GET.date_range == 'month' %}selected{% endif %}>Last 30 Days</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Verified Only</label>
+                    <select name="verified" class="filter-select">
+                        <option value="">All Reviews</option>
+                        <option value="true" {% if request.GET.verified == 'true' %}selected{% endif %}>Verified Only</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Search</label>
+                    <input type="text" name="search" class="filter-input" placeholder="Search reviews..." value="{{ request.GET.search }}">
+                </div>
+                
+                <div>
+                    <button type="submit" class="filter-btn">Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Reviews List -->
+    {% if reviews %}
+    <div class="reviews-list">
+        {% for review in reviews %}
+        <div class="review-card">
+            <div class="review-header">
+                <div>
+                    <div class="review-product">{{ review.product.title }}</div>
+                    <div class="review-user">
+                        <div class="user-avatar">{{ review.user.username|make_list|first|upper }}</div>
+                        {{ review.user.username }}
+                        {% if review.verified_purchase %}
+                        <span class="verified-badge">Verified Purchase</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="review-rating-date">
+                    <div class="review-rating">
+                        {% with ''|center:5 as range %}
+                        {% for _ in range %}
+                            {% if forloop.counter <= review.rating %}
+                                <i class="fas fa-star star-rating"></i>
+                            {% else %}
+                                <i class="far fa-star star-rating"></i>
+                            {% endif %}
+                        {% endfor %}
+                        {% endwith %}
+                        <span>{{ review.rating }}.0</span>
+                    </div>
+                    <div class="review-date">
+                        {{ review.created_at|date:"F d, Y" }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="review-body">
+                <div class="review-content">{{ review.comment }}</div>
+            </div>
+            
+            <div class="review-footer">
+                <div>
+                    <span class="status-pill {% if review.verified_purchase %}pill-success{% else %}pill-warning{% endif %}">
+                        {% if review.verified_purchase %}Verified{% else %}Unverified{% endif %}
+                    </span>
+                </div>
+                
+                <div class="review-actions">
+                    <button type="button" class="action-btn" data-bs-toggle="modal" data-bs-target="#viewReviewModal{{ review.id }}">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <form method="POST" action="{% url 'admin_side:delete_review' review.id %}" onsubmit="return confirm('Are you sure you want to delete this review?');" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="action-btn btn-delete">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- View Review Modal -->
+        <div class="modal fade" id="viewReviewModal{{ review.id }}" tabindex="-1" aria-labelledby="viewReviewModalLabel{{ review.id }}" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="viewReviewModalLabel{{ review.id }}">Review Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <h6 class="mb-2 fw-bold">Product</h6>
+                            <p>{{ review.product.title }}</p>
+                        </div>
+                        <div class="mb-3">
+                            <h6 class="mb-2 fw-bold">User</h6>
+                            <p>{{ review.user.username }} ({{ review.user.email }})</p>
+                        </div>
+                        <div class="mb-3">
+                            <h6 class="mb-2 fw-bold">Rating</h6>
+                            <div class="d-flex align-items-center">
+                                {% with ''|center:5 as range %}
+                                {% for _ in range %}
+                                    {% if forloop.counter <= review.rating %}
+                                        <i class="fas fa-star text-warning me-1"></i>
+                                    {% else %}
+                                        <i class="far fa-star text-warning me-1"></i>
+                                    {% endif %}
+                                {% endfor %}
+                                {% endwith %}
+                                <span class="ms-2">{{ review.rating }}.0</span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <h6 class="mb-2 fw-bold">Review</h6>
+                            <p>{{ review.comment }}</p>
+                        </div>
+                        <div class="mb-3">
+                            <h6 class="mb-2 fw-bold">Date</h6>
+                            <p>{{ review.created_at|date:"F d, Y, g:i A" }}</p>
+                        </div>
+                        <div class="mb-3">
+                            <h6 class="mb-2 fw-bold">Last Updated</h6>
+                            <p>{{ review.updated_at|date:"F d, Y, g:i A" }}</p>
+                        </div>
+                        <div>
+                            <h6 class="mb-2 fw-bold">Verified Purchase</h6>
+                            <p>
+                                {% if review.verified_purchase %}
+                                <span class="badge bg-success">Yes</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark">No</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline" data-bs-dismiss="modal">Close</button>
+                        <form method="POST" action="{% url 'admin_side:delete_review' review.id %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-custom" onclick="return confirm('Are you sure you want to delete this review?');">
+                                <i class="fas fa-trash-alt me-2"></i>Delete Review
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Pagination -->
+    {% if reviews.has_other_pages %}
+    <nav aria-label="Reviews pagination" class="review-pagination">
+        <ul class="pagination">
+            {% if reviews.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ reviews.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <a class="page-link" href="#" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+            {% endif %}
+            
+            {% for num in reviews.paginator.page_range %}
+                {% if reviews.number == num %}
+                <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                {% elif num > reviews.number|add:'-3' and num < reviews.number|add:'3' %}
+                <li class="page-item"><a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a></li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if reviews.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ reviews.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <a class="page-link" href="#" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+    
+    {% else %}
+    <div class="card stats-card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-comment-slash fa-3x mb-3 text-muted"></i>
+            <h5 class="text-muted">No reviews found</h5>
+            <p class="text-muted">There are no reviews matching the current filters.</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

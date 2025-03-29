@@ -174,22 +174,24 @@
 </div>
 
 <script>
-    // Format dates for datetime-local input
     document.addEventListener('DOMContentLoaded', function() {
-        // Set the start date and end date values
-        const startDate = new Date("{{ offer.start_date|date:'Y-m-d' }}T{{ offer.start_date|time:'H:i' }}");
-        const endDate = new Date("{{ offer.end_date|date:'Y-m-d' }}T{{ offer.end_date|time:'H:i' }}");
+        // Format dates for datetime-local inputs
+        function formatDateForInput(dateString) {
+            const date = new Date(dateString);
+            return date.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:MM
+        }
         
-        document.getElementById('start_date').value = formatDateForInput(startDate);
-        document.getElementById('end_date').value = formatDateForInput(endDate);
+        // Set the start date and end date values
+        const startDateInput = document.getElementById('start_date');
+        const endDateInput = document.getElementById('end_date');
+        
+        {% if offer.start_date %}
+        startDateInput.value = formatDateForInput("{{ offer.start_date|date:'c' }}");
+        {% endif %}
+        
+        {% if offer.end_date %}
+        endDateInput.value = formatDateForInput("{{ offer.end_date|date:'c' }}");
+        {% endif %}
     });
-    
-    function formatDateForInput(date) {
-        return date.getFullYear() + '-' + 
-               String(date.getMonth() + 1).padStart(2, '0') + '-' + 
-               String(date.getDate()).padStart(2, '0') + 'T' + 
-               String(date.getHours()).padStart(2, '0') + ':' + 
-               String(date.getMinutes()).padStart(2, '0');
-    }
 </script>
 {% endblock %} 

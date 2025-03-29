@@ -1,0 +1,594 @@
+{% extends 'admin_sidebar.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    :root {
+        --primary-color: #8B4513;
+        --primary-hover: #6b3410;
+        --light-brown: #f5e6d3;
+    }
+    
+    .wallet-history-container {
+        padding: 2rem;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+    
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .page-title {
+        color: var(--primary-color);
+        margin-bottom: 0;
+        font-size: 1.8rem;
+        font-weight: 600;
+    }
+    
+    .stats-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        background: #fff;
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        border-left: 4px solid var(--primary-color);
+        transition: transform 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+        color: #666;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .filters-container {
+        background: #fff;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    .filter-title {
+        color: var(--primary-color);
+        margin-bottom: 1rem;
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+    
+    .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .filter-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .filter-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #666;
+        font-weight: 500;
+    }
+    
+    .filter-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        transition: border-color 0.3s;
+    }
+    
+    .filter-input:focus {
+        border-color: var(--primary-color);
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(139, 69, 19, 0.1);
+    }
+    
+    .btn-filter {
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-weight: 500;
+    }
+    
+    .btn-filter:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-2px);
+    }
+    
+    .btn-reset {
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-weight: 500;
+        margin-left: 0.5rem;
+    }
+    
+    .btn-reset:hover {
+        background-color: #5a6268;
+        transform: translateY(-2px);
+    }
+    
+    .table-container {
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+    
+    .transactions-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .transactions-table th {
+        background-color: var(--light-brown);
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 2px solid #dee2e6;
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+    
+    .transactions-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #f0f0f0;
+        vertical-align: middle;
+    }
+    
+    .transactions-table tr:hover {
+        background-color: #f9f9f9;
+    }
+    
+    .badge {
+        display: inline-block;
+        padding: 0.35rem 0.65rem;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .badge-credit {
+        background-color: #d1e7dd;
+        color: #0f5132;
+    }
+    
+    .badge-debit {
+        background-color: #f8d7da;
+        color: #842029;
+    }
+    
+    .badge-completed {
+        background-color: #d1e7dd;
+        color: #0f5132;
+    }
+    
+    .badge-pending {
+        background-color: #fff3cd;
+        color: #664d03;
+    }
+    
+    .badge-failed {
+        background-color: #f8d7da;
+        color: #842029;
+    }
+    
+    .amount-credit {
+        color: #198754;
+        font-weight: 600;
+    }
+    
+    .amount-debit {
+        color: #dc3545;
+        font-weight: 600;
+    }
+    
+    .pagination {
+        display: flex;
+        justify-content: center;
+        margin-top: 2rem;
+    }
+    
+    .pagination a, .pagination span {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        margin: 0 0.25rem;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        color: var(--primary-color);
+        text-decoration: none;
+        transition: all 0.3s;
+    }
+    
+    .pagination a:hover {
+        background-color: var(--light-brown);
+        border-color: var(--primary-color);
+    }
+    
+    .pagination .current {
+        background-color: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+    
+    .pagination .disabled {
+        color: #6c757d;
+        pointer-events: none;
+    }
+    
+    .refund-badge {
+        background-color: #d1e7dd;
+        color: #0f5132;
+        padding: 0.25rem 0.5rem;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        margin-left: 0.5rem;
+        font-weight: 600;
+    }
+    
+    .btn-action {
+        padding: 0.4rem 0.75rem;
+        border-radius: 50px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        transition: all 0.3s;
+        border: none;
+        cursor: pointer;
+    }
+    
+    .btn-info {
+        background-color: #cfe2ff;
+        color: #084298;
+    }
+    
+    .btn-info:hover {
+        background-color: #084298;
+        color: white;
+    }
+    
+    .btn-success {
+        background-color: #d1e7dd;
+        color: #0f5132;
+    }
+    
+    .btn-success:hover {
+        background-color: #0f5132;
+        color: white;
+    }
+    
+    .btn-danger {
+        background-color: #f8d7da;
+        color: #842029;
+    }
+    
+    .btn-danger:hover {
+        background-color: #842029;
+        color: white;
+    }
+    
+    .export-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--primary-color);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: all 0.3s;
+        font-weight: 500;
+    }
+    
+    .export-btn:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-2px);
+        color: white;
+    }
+    
+    .export-btn i {
+        margin-right: 0.5rem;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #6c757d;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: #dee2e6;
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="wallet-history-container">
+        <div class="page-header">
+            <h2 class="page-title">Wallet Transaction History</h2>
+            <a href="{% url 'admin_side:export_wallet_transactions' %}?{% if user_filter %}user={{ user_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="export-btn">
+                <i class="fas fa-download"></i> Export Transactions
+            </a>
+        </div>
+        
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-value">₹{{ total_credit }}</div>
+                <div class="stat-label">Total Credits</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">₹{{ total_debit }}</div>
+                <div class="stat-label">Total Debits</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">₹{{ total_credit|add:"-"|add:total_debit }}</div>
+                <div class="stat-label">Net Balance</div>
+            </div>
+        </div>
+        
+        <div class="filters-container">
+            <h3 class="filter-title">Filter Transactions</h3>
+            <form method="GET" action="{% url 'admin_side:wallet_history' %}">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label class="filter-label" for="user">User</label>
+                        <input type="text" id="user" name="user" class="filter-input" placeholder="Username, email, name..." value="{{ user_filter }}">
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label" for="type">Transaction Type</label>
+                        <select id="type" name="type" class="filter-input">
+                            <option value="">All Types</option>
+                            {% for type_code, type_name in transaction_types %}
+                            <option value="{{ type_code }}" {% if type_filter == type_code %}selected{% endif %}>{{ type_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label" for="status">Status</label>
+                        <select id="status" name="status" class="filter-input">
+                            <option value="COMPLETED" selected>Completed</option>
+                            {% for status_code, status_name in transaction_statuses %}
+                                {% if status_code != "PENDING" %}
+                                <option value="{{ status_code }}" {% if status_filter == status_code and status_code != "PENDING" %}selected{% endif %}>{{ status_name }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label class="filter-label" for="date_from">From Date</label>
+                        <input type="date" id="date_from" name="date_from" class="filter-input" value="{{ date_from }}">
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label" for="date_to">To Date</label>
+                        <input type="date" id="date_to" name="date_to" class="filter-input" value="{{ date_to }}">
+                    </div>
+                    <div class="filter-group d-flex align-items-end">
+                        <button type="submit" class="btn-filter">
+                            <i class="fas fa-filter me-2"></i> Apply Filters
+                        </button>
+                        <a href="{% url 'admin_side:wallet_history' %}" class="btn-reset">
+                            <i class="fas fa-undo me-2"></i> Reset
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <div class="table-container">
+            <table class="transactions-table">
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>User</th>
+                        <th>Description</th>
+                        <th>Reference</th>
+                        <th>Amount</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transaction in transactions %}
+                    {% if transaction.status == 'COMPLETED' %}
+                    <tr>
+                        <td>{{ transaction.created_at|date:"F d, Y H:i" }}</td>
+                        <td>
+                            <a href="{% url 'admin_side:customer_management' %}?search={{ transaction.wallet.user.username }}" style="color: var(--primary-color); text-decoration: none; font-weight: 500;">
+                                {{ transaction.wallet.user.get_full_name|default:transaction.wallet.user.username }}
+                            </a>
+                        </td>
+                        <td>
+                            {{ transaction.description }}
+                            {% if "Refund" in transaction.description %}
+                            <span class="refund-badge">Refund</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if transaction.reference_id %}
+                            <a href="{% url 'admin_side:order_details' transaction.reference_id %}" style="color: var(--primary-color); text-decoration: none; font-weight: 500;">
+                                #{{ transaction.reference_id }}
+                            </a>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="{% if transaction.transaction_type == 'CREDIT' %}amount-credit{% else %}amount-debit{% endif %}">
+                            {% if transaction.transaction_type == 'CREDIT' %}+{% else %}-{% endif %}₹{{ transaction.amount }}
+                        </td>
+                        <td>
+                            <span class="badge {% if transaction.transaction_type == 'CREDIT' %}badge-credit{% else %}badge-debit{% endif %}">
+                                {{ transaction.get_transaction_type_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge badge-{{ transaction.status|lower }}">
+                                {{ transaction.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if transaction.reference_id %}
+                            <button onclick="viewOrderDetails('{{ transaction.reference_id }}')" class="btn-action btn-info">
+                                <i class="fas fa-eye me-1"></i> View Order
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="empty-state">
+                            <i class="fas fa-wallet"></i>
+                            <p>No transactions found</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if transactions.has_other_pages %}
+        <div class="pagination">
+            {% if transactions.has_previous %}
+            <a href="?page=1{% if user_filter %}&user={{ user_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                <i class="fas fa-angle-double-left"></i> First
+            </a>
+            <a href="?page={{ transactions.previous_page_number }}{% if user_filter %}&user={{ user_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                <i class="fas fa-angle-left"></i> Previous
+            </a>
+            {% else %}
+            <span class="disabled">
+                <i class="fas fa-angle-double-left"></i> First
+            </span>
+            <span class="disabled">
+                <i class="fas fa-angle-left"></i> Previous
+            </span>
+            {% endif %}
+            
+            {% for i in transactions.paginator.page_range %}
+                {% if transactions.number == i %}
+                <span class="current">{{ i }}</span>
+                {% elif i > transactions.number|add:"-3" and i < transactions.number|add:"3" %}
+                <a href="?page={{ i }}{% if user_filter %}&user={{ user_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">{{ i }}</a>
+                {% endif %}
+            {% endfor %}
+            
+            {% if transactions.has_next %}
+            <a href="?page={{ transactions.next_page_number }}{% if user_filter %}&user={{ user_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                Next <i class="fas fa-angle-right"></i>
+            </a>
+            <a href="?page={{ transactions.paginator.num_pages }}{% if user_filter %}&user={{ user_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                Last <i class="fas fa-angle-double-right"></i>
+            </a>
+            {% else %}
+            <span class="disabled">
+                Next <i class="fas fa-angle-right"></i>
+            </span>
+            <span class="disabled">
+                Last <i class="fas fa-angle-double-right"></i>
+            </span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Order Details Modal -->
+<div class="modal fade" id="orderDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Order Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="orderDetailsContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // No JavaScript needed
+    // View Order Details
+    function viewOrderDetails(orderId) {
+        console.log('Viewing order details for:', orderId);
+        
+        fetch(`/admin_side/orders/${orderId}/details/`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.text();
+        })
+        .then(html => {
+            console.log('Received HTML response');
+            const orderDetailsContent = document.getElementById('orderDetailsContent');
+            orderDetailsContent.innerHTML = html;
+            
+            // Find the modal element and create a new Bootstrap modal instance
+            const modalElement = document.getElementById('orderDetailsModal');
+            const modal = new bootstrap.Modal(modalElement);
+            
+            // Show the modal
+            modal.show();
+            
+            console.log('Modal should be visible now');
+        })
+        .catch(error => {
+            console.error('Error loading order details:', error);
+            alert('Failed to load order details. Please try again.');
+        });
+    }
+</script>
+<!-- Make sure Bootstrap JS is loaded -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %} 

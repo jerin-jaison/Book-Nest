@@ -149,7 +149,38 @@
                 document.getElementById('razorpay_payment_id').value = response.razorpay_payment_id;
                 document.getElementById('razorpay_order_id').value = response.razorpay_order_id;
                 document.getElementById('razorpay_signature').value = response.razorpay_signature;
-                document.getElementById('razorpay-form').submit();
+                
+                // Submit the form via AJAX
+                const form = document.getElementById('razorpay-form');
+                const formData = new FormData(form);
+                
+                fetch(form.action, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Store order ID in localStorage for fallback
+                        localStorage.setItem('current_order_id', '{{ order.order_id }}');
+                        
+                        // Check if redirect URL is valid
+                        if (data.redirect_url && data.redirect_url !== 'undefined') {
+                            // Redirect to success page
+                            window.location.href = data.redirect_url;
+                        } else {
+                            // Fallback to direct success page URL
+                            window.location.href = '/online_payment/payment_success/{{ order.order_id }}/';
+                        }
+                    } else {
+                        // Redirect to failure page
+                        window.location.href = data.redirect_url || "{% url 'online_payment:payment_failure' %}?order_id={{ order.order_id }}";
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    window.location.href = "{% url 'online_payment:payment_failure' %}?order_id={{ order.order_id }}";
+                });
             },
             "prefill": {
                 "name": "{{ customer_name }}",
@@ -161,6 +192,12 @@
             },
             "theme": {
                 "color": "#8B4513"
+            },
+            "modal": {
+                "ondismiss": function() {
+                    // Redirect to payment failure page when user closes the Razorpay modal
+                    window.location.href = "{% url 'online_payment:payment_failure' %}?order_id={{ order.order_id }}";
+                }
             }
         };
         
@@ -178,10 +215,63 @@
 </script>
 
 <!-- Hidden form to submit payment details back to server -->
-<form id="razorpay-form" action="{{ callback_url }}" method="POST" style="display: none;">
+<form id="razorpay-form" action="{% url 'online_payment:payment_callback' %}" method="POST" style="display: none;">
     {% csrf_token %}
     <input type="hidden" name="razorpay_payment_id" id="razorpay_payment_id">
     <input type="hidden" name="razorpay_order_id" id="razorpay_order_id">
     <input type="hidden" name="razorpay_signature" id="razorpay_signature">
 </form>
+
+<!-- Global error handler for undefined URLs -->
+<script>
+    // Handle errors in navigation
+    window.addEventListener('error', function(e) {
+        // Check if this is a navigation error to undefined
+        if (e.target.tagName === 'SCRIPT' && e.target.src && e.target.src.includes('undefined')) {
+            e.preventDefault();
+            
+            // Get order ID from localStorage
+            const orderId = localStorage.getItem('current_order_id') || '{{ order.order_id }}';
+            if (orderId) {
+                console.log('Redirecting to payment success with order ID:', orderId);
+                window.location.href = '/online_payment/payment_success/' + orderId + '/';
+            } else {
+                // Fallback
+                console.log('No order ID found, redirecting to order placed page');
+                window.location.href = '/cart_section/order_placed/';
+            }
+            
+            return false;
+        }
+    }, true);
+    
+    // Override window.location.href setter to prevent undefined URLs
+    (function() {
+        const oldHrefDescriptor = Object.getOwnPropertyDescriptor(window.Location.prototype, 'href');
+        const oldHrefSetter = oldHrefDescriptor.set;
+        
+        Object.defineProperty(window.Location.prototype, 'href', {
+            set: function(url) {
+                if (url === 'undefined' || url.includes('/undefined')) {
+                    console.error('Prevented navigation to undefined URL:', url);
+                    
+                    // Get order ID from localStorage or page
+                    const orderId = localStorage.getItem('current_order_id') || '{{ order.order_id }}';
+                    if (orderId) {
+                        // Navigate to payment success
+                        oldHrefSetter.call(this, '/online_payment/payment_success/' + orderId + '/');
+                    } else {
+                        // Default fallback
+                        oldHrefSetter.call(this, '/cart_section/order_placed/');
+                    }
+                } else {
+                    // Normal navigation
+                    oldHrefSetter.call(this, url);
+                }
+            },
+            get: oldHrefDescriptor.get,
+            configurable: true
+        });
+    })();
+</script>
 {% endblock %}

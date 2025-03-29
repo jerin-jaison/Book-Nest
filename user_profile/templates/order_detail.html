@@ -2,6 +2,8 @@
 {% load static %}
 
 {% block profile_content %}
+<!-- Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
 <style>
     .order-detail-container {
         padding: 20px;
@@ -47,7 +49,9 @@
     .status-shipped { background-color: #d4edda; color: #155724; }
     .status-delivered { background-color: #d1e7dd; color: #0f5132; }
     .status-cancelled { background-color: #f8d7da; color: #721c24; }
-    .status-returned { background-color: #e2e3e5; color: #383d41; }
+    .status-returned { background-color: #d4edda; color: #155724; }
+    .status-return-requested { background-color: #ffd700; color: #000; }
+    .status-return-rejected { background-color: #f8d7da; color: #721c24; }
 
     .order-grid {
         display: grid;
@@ -245,6 +249,123 @@
         background-color: #e0a800;
         color: #000;
     }
+
+    /* Item return button */
+    .btn-item-return {
+        background-color: transparent;
+        border: 1px solid #ffc107;
+        color: #000;
+        padding: 3px 10px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-item-return:hover {
+        background-color: #ffc107;
+        color: #000;
+    }
+    
+    /* Return Modal Styles */
+    .return-item-checkbox {
+        width: 18px;
+        height: 18px;
+        margin-right: 10px;
+    }
+    
+    .return-item {
+        display: flex;
+        align-items: center;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 15px;
+    }
+    
+    .return-item-details {
+        flex: 1;
+        padding-left: 10px;
+    }
+    
+    .return-reason-select {
+        margin-top: 20px;
+    }
+    
+    .return-custom-reason {
+        margin-top: 15px;
+        display: none;
+    }
+    
+    .return-custom-reason.active {
+        display: block;
+    }
+    
+    .item-return-status {
+        font-size: 0.8rem;
+        padding: 3px 8px;
+        border-radius: 4px;
+        margin-left: 10px;
+    }
+    
+    .return-requested {
+        background-color: #ffd700;
+        color: #000;
+    }
+    
+    .return-approved {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .return-rejected {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    .returned {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .item-return-details {
+        margin-top: 10px;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+    
+    .return-rejection-reason {
+        margin-top: 8px;
+        padding: 8px;
+        background-color: #f8d7da;
+        border-left: 3px solid #721c24;
+        border-radius: 4px;
+        font-size: 0.85rem;
+    }
+    
+    .return-reason-toggle {
+        color: #0d6efd;
+        text-decoration: underline;
+        cursor: pointer;
+        font-size: 0.85rem;
+        margin-left: 5px;
+        display: inline-block;
+        background-color: rgba(255, 255, 255, 0.7);
+        padding: 2px 8px;
+        border-radius: 4px;
+        border: 1px solid #0d6efd;
+        transition: all 0.2s ease;
+    }
+    
+    .return-reason-toggle:hover {
+        background-color: #0d6efd;
+        color: white;
+    }
+    
+    .reason-visible {
+        display: block !important;
+    }
 </style>
 
 <div class="order-detail-container">
@@ -254,15 +375,36 @@
             <div class="order-date">Placed on {{ order.created_at|date:"F d, Y" }}</div>
         </div>
         <div style="display: flex; align-items: center; gap: 15px;">
-            <span class="order-status status-{{ order.status|lower }}">{{ order.status }}</span>
+            <span id="orderStatusBadge" class="order-status 
+                {% if order.status == 'RETURN_REJECTED' %}status-return-rejected
+                {% elif order.return_requested and order.status != 'RETURNED' %}status-return-requested
+                {% elif order.status == 'RETURNED' %}status-returned
+                {% elif order.status == 'DELIVERED' and order.notes and 'return rejected' in order.notes|lower %}status-return-rejected
+                {% elif order.status == 'DELIVERED' %}status-delivered
+                {% else %}status-{{ order.status|lower }}{% endif %}">
+                {% if order.status == 'RETURN_REJECTED' %}
+                    Return Request Rejected
+                {% elif order.return_requested and order.status != 'RETURNED' %}
+                    Return Requested
+                {% elif order.status == 'DELIVERED' and order.notes and 'return rejected' in order.notes|lower %}
+                    Return Request Rejected
+                {% else %}
+                    {{ order.status }}
+                {% endif %}
+            </span>
             <a href="{% url 'user_profile:generate_invoice' order.order_id %}" class="btn-action" style="display: inline-block; background-color: #28a745; color: white;">
                 <i class="bi bi-file-earmark-pdf"></i> Download Invoice
             </a>
+            {% if order.status == 'PENDING' %}
+            <a href="{% url 'cart_section:retry_payment' order.order_id %}" class="btn-action" style="display: inline-block; background-color: #ffc107; color: #212529; font-weight: bold; transition: all 0.3s ease;">
+                <i class="bi bi-arrow-repeat me-1"></i> Retry Purchase
+            </a>
+            {% endif %}
             {% if order.status == 'PENDING' or order.status == 'CONFIRMED' %}
             <a href="{% url 'user_profile:cancel_order_page' order.order_id %}" class="btn-action btn-cancel" style="display: inline-block;">Cancel Order</a>
             {% endif %}
-            {% if order.status == 'DELIVERED' and not order.return_requested %}
-            <a href="{% url 'user_profile:return_order' order.order_id %}" class="btn-action btn-return" style="display: inline-block; background-color: #ffc107; color: #000;">Return Order</a>
+            {% if order.status == 'RETURN_REQUESTED' %}
+            <a href="{% url 'user_profile:cancel_return_request' order.order_id %}" class="btn-action" style="display: inline-block; background-color: #6c757d; color: white;">Cancel Return Request</a>
             {% endif %}
         </div>
     </div>
@@ -276,9 +418,43 @@
                 <div class="item-details">
                     <div class="item-title">{{ item.product.title }}</div>
                     <div class="item-price">₹{{ item.price }} x {{ item.quantity }}</div>
+                    {% if item.status in 'RETURN_REQUESTED,RETURNED,RETURN_REJECTED' %}
+                        <span class="item-return-status {% if item.status == 'RETURN_REQUESTED' %}return-requested{% elif item.status == 'RETURNED' %}returned{% elif item.status == 'RETURN_REJECTED' %}return-rejected{% endif %}">
+                            {{ item.status }}
+                        </span>
+                        {% if item.status == 'RETURN_REJECTED' %}
+                            <button type="button" class="return-reason-toggle" onclick="viewRejectionDetails('{{ item.id }}', event)">
+                                <i class="bi bi-info-circle-fill"></i> View Reason
+                            </button>
+                            <div id="rejection-reason-{{ item.id }}" class="item-return-details" style="display: none;">
+                                <div><strong>Your request:</strong> 
+                                    {% if item.return_reason %}
+                                        {{ item.return_reason }}
+                                    {% else %}
+                                        Item return requested
+                                    {% endif %}
+                                </div>
+                                <div class="return-rejection-reason mt-2">
+                                    <strong>Admin's response:</strong> 
+                                    {% if item.notes %}
+                                        {{ item.notes }}
+                                    {% else %}
+                                        Return request was rejected. Please contact customer support for more details.
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endif %}
                 </div>
-                <div class="item-total">
-                    ₹{{ item.total }}
+                <div class="d-flex flex-column align-items-end">
+                    <div class="item-total mb-2">
+                        ₹{{ item.total }}
+                    </div>
+                    {% if order.status == 'DELIVERED' and item.status not in 'RETURN_REQUESTED,RETURNED,RETURN_REJECTED' %}
+                    <button class="btn-item-return" onclick="openReturnItemModal('{{ item.id }}', '{{ item.product.title|escapejs }}', '{{ item.price }}', {{ item.quantity }}, '{{ item.product.cover_image.url }}')">
+                        <i class="bi bi-arrow-return-left"></i> Return
+                    </button>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -324,6 +500,11 @@
             <div class="reason-box">
                 <h3 class="reason-title">Cancellation Reason</h3>
                 <p class="reason-text">{{ order.cancel_reason }}</p>
+                {% if order.payment_method != 'COD' and order.payment_status == 'REFUNDED' %}
+                <div style="margin-top: 10px; padding: 10px; background-color: #d1e7dd; border-radius: 5px; color: #0f5132;">
+                    <i class="bi bi-wallet2"></i> Refund of ₹{{ order.total }} has been credited to your wallet.
+                </div>
+                {% endif %}
             </div>
             {% endif %}
 
@@ -331,6 +512,19 @@
             <div class="reason-box">
                 <h3 class="reason-title">Return Reason</h3>
                 <p class="reason-text">{{ order.return_reason }}</p>
+                {% if order.payment_status == 'REFUNDED' %}
+                <div style="margin-top: 10px; padding: 10px; background-color: #d1e7dd; border-radius: 5px; color: #0f5132;">
+                    <i class="bi bi-wallet2"></i> Refund of ₹{{ order.total }} has been credited to your wallet.
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            {% if order.status == 'RETURN_REJECTED' %}
+            <div class="reason-box" style="background-color: #f8d7da; border-left: 4px solid #721c24;">
+                <h3 class="reason-title">Return Request Rejected</h3>
+                <p class="reason-text"><strong>Your return request:</strong> {{ order.return_reason }}</p>
+                <p class="reason-text"><strong>Admin's rejection reason:</strong> {{ order.notes }}</p>
             </div>
             {% endif %}
         </div>
@@ -352,4 +546,301 @@
         {% endfor %}
     </div>
 </div>
+
+<!-- Return Item Modal -->
+<div class="modal fade" id="returnItemModal" tabindex="-1" aria-labelledby="returnItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="returnItemModalLabel">Return Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="returnItemForm" method="post" action="{% url 'user_profile:return_item' order.order_id %}">
+                    {% csrf_token %}
+                    <input type="hidden" id="returnItemId" name="item_id">
+                    
+                    <div class="return-item">
+                        <img id="returnItemImage" src="" alt="" class="item-image">
+                        <div class="return-item-details">
+                            <div id="returnItemTitle" class="item-title"></div>
+                            <div id="returnItemPrice" class="item-price"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group return-reason-select">
+                        <label for="returnReason">Return Reason</label>
+                        <select class="form-control" id="returnReason" name="reason" required onchange="checkCustomReason(this.value)">
+                            <option value="">Select a reason</option>
+                            <option value="Wrong item received">Wrong item received</option>
+                            <option value="Item damaged">Item damaged or defective</option>
+                            <option value="Item not as described">Item not as described</option>
+                            <option value="Change of mind">Change of mind</option>
+                            <option value="Other">Other (please specify)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group return-custom-reason" id="customReasonContainer">
+                        <label for="customReason">Please specify</label>
+                        <textarea class="form-control" id="customReason" name="custom_reason" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="form-group mt-4">
+                        <label>Return Method</label>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="radio" name="return_method" id="returnMethodPickup" value="pickup" checked>
+                            <label class="form-check-label" for="returnMethodPickup">
+                                Schedule a pickup
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="return_method" id="returnMethodDropoff" value="dropoff">
+                            <label class="form-check-label" for="returnMethodDropoff">
+                                Drop off at designated location
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitReturnItemForm()">Submit Return Request</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Function to open return item modal
+    function openReturnItemModal(itemId, title, price, quantity, imageUrl) {
+        document.getElementById('returnItemId').value = itemId;
+        document.getElementById('returnItemTitle').textContent = title;
+        document.getElementById('returnItemPrice').textContent = `₹${price} x ${quantity}`;
+        document.getElementById('returnItemImage').src = imageUrl;
+        
+        // Reset form
+        document.getElementById('returnReason').value = '';
+        document.getElementById('customReason').value = '';
+        document.getElementById('customReasonContainer').classList.remove('active');
+        
+        // Open modal
+        var returnItemModal = new bootstrap.Modal(document.getElementById('returnItemModal'));
+        returnItemModal.show();
+    }
+    
+    // Function to check if custom reason is selected
+    function checkCustomReason(reason) {
+        var customReasonContainer = document.getElementById('customReasonContainer');
+        var customReasonInput = document.getElementById('customReason');
+        
+        if (reason === 'Other') {
+            customReasonContainer.classList.add('active');
+            customReasonInput.setAttribute('required', 'required');
+        } else {
+            customReasonContainer.classList.remove('active');
+            customReasonInput.removeAttribute('required');
+        }
+    }
+    
+    // Function to submit return item form
+    function submitReturnItemForm() {
+        var form = document.getElementById('returnItemForm');
+        var reason = document.getElementById('returnReason').value;
+        var customReason = document.getElementById('customReason').value;
+        
+        if (!reason) {
+            alert('Please select a return reason');
+            return;
+        }
+        
+        if (reason === 'Other' && !customReason) {
+            alert('Please provide a reason for your return');
+            return;
+        }
+        
+        form.submit();
+    }
+
+    // Function to view rejection details - improved version
+    function viewRejectionDetails(itemId, event) {
+        var detailsElement = document.getElementById('rejection-reason-' + itemId);
+        
+        if (!detailsElement) {
+            console.error("Could not find rejection details element for item " + itemId);
+            alert("Could not display rejection details. Please contact customer support.");
+            return;
+        }
+        
+        // If we haven't yet fetched the rejection details
+        if (!detailsElement.dataset.loaded) {
+            // Fetch the rejection details from the server
+            fetch(`/user_profile/get_item_rejection_reason/${itemId}/`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Update the rejection reason with the data from the server
+                        const reasonElement = detailsElement.querySelector('.return-rejection-reason');
+                        if (reasonElement && data.rejection_reason) {
+                            reasonElement.innerHTML = `<strong>Admin's response:</strong> ${data.rejection_reason}`;
+                        }
+                        // Mark as loaded
+                        detailsElement.dataset.loaded = "true";
+                    } else {
+                        console.error("Failed to get rejection reason:", data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching rejection reason:', error);
+                });
+        }
+        
+        // Toggle visibility
+        if (detailsElement.style.display === 'none' || detailsElement.style.display === '') {
+            detailsElement.style.display = 'block';
+            
+            // Get the button that triggered this
+            var button = event ? event.currentTarget : document.querySelector(`button[onclick*="viewRejectionDetails('${itemId}')"]`);
+            if (button) {
+                button.innerHTML = '<i class="bi bi-x-circle-fill"></i> Hide Reason';
+            }
+        } else {
+            detailsElement.style.display = 'none';
+            
+            // Get the button that triggered this
+            var button = event ? event.currentTarget : document.querySelector(`button[onclick*="viewRejectionDetails('${itemId}')"]`);
+            if (button) {
+                button.innerHTML = '<i class="bi bi-info-circle-fill"></i> View Reason';
+            }
+        }
+    }
+
+    // The existing toggleRejectionReason function as fallback
+    function toggleRejectionReason(id) {
+        console.log("Toggling element with ID:", id);
+        var element = document.getElementById(id);
+        if (element) {
+            element.classList.toggle('reason-visible');
+            if (element.classList.contains('reason-visible')) {
+                element.style.display = 'block';
+            } else {
+                element.style.display = 'none';
+            }
+        } else {
+            console.error("Element not found:", id);
+        }
+    }
+
+    // Initialize any elements that should be visible on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        var reasonElements = document.querySelectorAll('.item-return-details');
+        reasonElements.forEach(function(element) {
+            if (element.classList.contains('reason-visible')) {
+                element.style.display = 'block';
+            }
+        });
+    });
+
+    // Add a helper function to extract return rejection reason from order notes
+    function getReturnRejectionReason() {
+        {% if order.notes and 'return rejected' in order.notes|lower %}
+            // Check if there's a specific rejection reason pattern
+            const notes = `{{ order.notes|escapejs }}`;
+            const rejectionPattern = /return rejected\.\s*reason:\s*(.*?)(?:\n|$)/i;
+            const match = notes.match(rejectionPattern);
+            
+            if (match && match[1]) {
+                return match[1].trim();
+            } else if (notes.toLowerCase().includes('return rejected')) {
+                return "Return request was rejected by the administrator.";
+            }
+        {% endif %}
+        return "";
+    }
+    
+    // Add return rejection event to timeline on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const timeline = document.querySelector('.timeline');
+        const rejection_reason = getReturnRejectionReason();
+        
+        {% if order.status == 'DELIVERED' and order.notes and 'return rejected' in order.notes|lower %}
+        if (timeline && rejection_reason) {
+            // Find the timeline items
+            const timelineItems = timeline.querySelectorAll('.timeline-item');
+            const lastItem = timelineItems[timelineItems.length - 1];
+            
+            // Create a new timeline item for the rejection
+            const rejectionItem = document.createElement('div');
+            rejectionItem.className = 'timeline-item';
+            rejectionItem.innerHTML = `
+                <div class="timeline-dot" style="background-color: #dc3545;"></div>
+                <div class="timeline-content">
+                    <div class="timeline-date">{{ order.updated_at|date:"F d, Y H:i" }}</div>
+                    <div class="timeline-text">Return Request Rejected</div>
+                    <div class="timeline-description">
+                        ${rejection_reason}
+                    </div>
+                </div>
+            `;
+            
+            // Insert before or after the delivered status
+            timeline.insertBefore(rejectionItem, null);
+        }
+        {% endif %}
+    });
+
+    // Determine the composite order status based on item statuses
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get all items and their statuses
+        const items = [
+            {% for item in order.items.all %}
+                {
+                    id: '{{ item.id }}',
+                    title: '{{ item.product.title|escapejs }}',
+                    status: '{{ item.status }}'
+                }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        // Count items with each status
+        let totalItems = items.length;
+        let requestedCount = 0;
+        let rejectedCount = 0;
+        let returnedCount = 0;
+        
+        items.forEach(item => {
+            if (item.status === 'RETURN_REQUESTED') {
+                requestedCount++;
+            } else if (item.status === 'RETURN_REJECTED') {
+                rejectedCount++;
+            } else if (item.status === 'RETURNED') {
+                returnedCount++;
+            }
+        });
+        
+        // Update the status badge if there are mixed statuses
+        const statusBadge = document.getElementById('orderStatusBadge');
+        
+        // Only update if there are multiple items with different statuses
+        if (totalItems > 1 && (requestedCount > 0 || rejectedCount > 0 || returnedCount > 0) && 
+           (requestedCount < totalItems || rejectedCount < totalItems || returnedCount < totalItems)) {
+            
+            // Determine the composite status based on priority
+            if (requestedCount > 0) {
+                statusBadge.textContent = (requestedCount === totalItems) ? 'Return Requested' : 'Partial Return Requested';
+                statusBadge.className = 'order-status status-return-requested';
+            } else if (rejectedCount > 0) {
+                statusBadge.textContent = (rejectedCount === totalItems) ? 'Return Request Rejected' : 'Partial Return Rejected';
+                statusBadge.className = 'order-status status-return-rejected';
+            } else if (returnedCount > 0) {
+                statusBadge.textContent = (returnedCount === totalItems) ? 'RETURNED' : 'Partially Returned';
+                statusBadge.className = 'order-status status-returned';
+            }
+        }
+    });
+</script>
 {% endblock %} 

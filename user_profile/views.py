@@ -28,6 +28,8 @@ from io import BytesIO
 import datetime
 from admin_side.models import Coupon, ReferralCode, ReferralHistory
 from decimal import Decimal
+from admin_side.models import CouponUsage
+from django.db.models import Exists, OuterRef
 
 def validate_image_file(image):
     # Check if file is an image
@@ -566,6 +568,11 @@ def orders_list(request):
 def order_detail(request, order_id):
     try:
         order = get_object_or_404(Order, order_id=order_id, user=request.user)
+        
+        # Debug print
+        print(f"DEBUG: Order found - ID: {order.order_id}, Status: {order.status}")
+        print(f"DEBUG: Order items count: {order.items.count()}")
+        
         context = {
             'order': order,
             'timeline': [
@@ -634,6 +641,17 @@ def order_detail(request, order_id):
                     'description': f'Order returned. Reason: {order.return_reason or "No reason provided"}'
                 }
             ])
+        
+        # Add item-specific return events to the timeline
+        if order.notes and 'Return requested for item' in order.notes:
+            return_notes = order.notes.split('\n')
+            for note in return_notes:
+                if 'Return requested for item' in note:
+                    context['timeline'].append({
+                        'date': order.return_requested_at or order.updated_at,
+                        'status': 'Item Return Requested',
+                        'description': note
+                    })
         
         return render(request, 'order_detail.html', context)
     except Order.DoesNotExist:
@@ -704,6 +722,34 @@ def cancel_order(request, order_id):
                     referral_history.reward_deducted = True
                     referral_history.save()
             
+            # If the order was paid online, refund the amount to the user's wallet
+            if order.payment_method != 'COD' and order.payment_status == 'PAID':
+                # Get or create user's wallet
+                wallet, created = Wallet.objects.get_or_create(user=request.user)
+                
+                # Add the refund amount to the wallet
+                wallet.balance += order.total
+                wallet.save()
+                
+                # Create a wallet transaction record
+                WalletTransaction.objects.create(
+                    wallet=wallet,
+                    amount=order.total,
+                    transaction_type='CREDIT',
+                    status='COMPLETED',
+                    description=f'Refund for cancelled order #{order.order_id}',
+                    reference_id=order.order_id
+                )
+                
+                # Update order payment status to REFUNDED
+                order.payment_status = 'REFUNDED'
+                order.save()
+                
+                # Add refund message to success message
+                refund_message = f'₹{order.total} has been refunded to your wallet.'
+            else:
+                refund_message = ''
+            
             # Send email notification
             subject = f'Order Cancellation Notification - Order #{order.order_id}'
             message = f'''
@@ -720,6 +766,8 @@ def cancel_order(request, order_id):
             Total Amount: ₹{order.total}
             Items:
             {chr(10).join([f"- {item.quantity}x {item.product.title}" for item in order.items.all()])}
+            
+            {f"Refund Information: {refund_message}" if refund_message else ""}
             '''
             
             send_mail(
@@ -730,7 +778,11 @@ def cancel_order(request, order_id):
                 fail_silently=False,
             )
             
-            messages.success(request, 'Order cancelled successfully')
+            success_message = 'Order cancelled successfully'
+            if refund_message:
+                success_message += f' {refund_message}'
+                
+            messages.success(request, success_message)
             return redirect('user_profile:orders_list')
             
     except Exception as e:
@@ -817,6 +869,108 @@ def return_order(request, order_id):
     
     # GET request - display the return form
     return render(request, 'return_order.html', {'order': order})
+
+@login_required(login_url='login_page')
+def return_item(request, order_id):
+    order = get_object_or_404(Order, order_id=order_id, user=request.user)
+    
+    # Check if order is eligible for return (delivered status)
+    if order.status != 'DELIVERED':
+        messages.error(request, "Only delivered orders can be returned.")
+        return redirect('user_profile:order_detail', order_id=order_id)
+    
+    if request.method == 'POST':
+        item_id = request.POST.get('item_id')
+        return_reason = request.POST.get('reason')
+        custom_reason = request.POST.get('custom_reason')
+        return_method = request.POST.get('return_method')
+        
+        # Use custom reason if selected
+        if return_reason == 'Other' and custom_reason:
+            return_reason = custom_reason
+        
+        if not item_id or not return_reason:
+            messages.error(request, "Please provide all required information.")
+            return redirect('user_profile:order_detail', order_id=order_id)
+        
+        # Get the order item
+        try:
+            order_item = OrderItem.objects.get(id=item_id, order=order)
+            
+            # Check if this item is already marked for return
+            if order_item.status in ['RETURN_REQUESTED', 'RETURNED', 'RETURN_REJECTED']:
+                messages.error(request, "This item already has a return request.")
+                return redirect('user_profile:order_detail', order_id=order_id)
+            
+            with transaction.atomic():
+                # Update item status
+                order_item.status = 'RETURN_REQUESTED'
+                order_item.save()
+                
+                # Add return reason to order notes if not already there
+                item_return_note = f"Return requested for item {order_item.product.title}: {return_reason} (Return method: {return_method})"
+                if order.notes:
+                    order.notes = order.notes + "\n" + item_return_note
+                else:
+                    order.notes = item_return_note
+                
+                # If this is the first item return request, update order status
+                requested_items = order.items.filter(status='RETURN_REQUESTED').count()
+                if requested_items == 1:  # This is the first item return
+                    order.return_requested = True
+                    order.return_requested_at = timezone.now()
+                    
+                order.save()
+                
+                # Get or create user's wallet
+                wallet, created = Wallet.objects.get_or_create(user=request.user)
+                
+                # Calculate refund amount for this item
+                refund_amount = order_item.total
+                
+                # Create a pending wallet transaction for the return amount
+                WalletTransaction.objects.create(
+                    wallet=wallet,
+                    amount=refund_amount,
+                    transaction_type='CREDIT',
+                    status='PENDING',
+                    description=f'Refund for returned item {order_item.product.title} (Order #{order.order_id})',
+                    reference_id=f"{order.order_id}-{order_item.id}"
+                )
+                
+                # Send email notification to admin
+                subject = f'Item Return Request - Order #{order.order_id}'
+                message = f'''
+                Item return request received for Order #{order.order_id}
+                
+                Customer: {request.user.get_full_name() or request.user.username}
+                Order Date: {order.created_at.strftime('%Y-%m-%d %H:%M:%S')}
+                Return Request Date: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}
+                
+                Item: {order_item.product.title} (Quantity: {order_item.quantity})
+                Reason for return: {return_reason}
+                Return Method: {return_method}
+                
+                Refund Amount: ₹{refund_amount}
+                '''
+                
+                send_mail(
+                    subject,
+                    message,
+                    settings.DEFAULT_FROM_EMAIL,
+                    ['booknestt@gmail.com'],
+                    fail_silently=False,
+                )
+                
+            messages.success(request, f"Return request for '{order_item.product.title}' submitted successfully. We will review your request shortly.")
+            return redirect('user_profile:order_detail', order_id=order_id)
+        
+        except OrderItem.DoesNotExist:
+            messages.error(request, "The requested item could not be found.")
+        except Exception as e:
+            messages.error(request, f"An error occurred while processing your return request: {str(e)}")
+    
+    return redirect('user_profile:order_detail', order_id=order_id)
 
 @login_required(login_url='login_page')
 @csrf_protect
@@ -939,8 +1093,30 @@ def generate_invoice(request, order_id):
 
 @login_required(login_url='login_page')
 def my_coupons(request):
-    # Get user's coupons
-    coupons = Coupon.objects.filter(user=request.user, is_active=True).order_by('-created_at')
+    current_time = timezone.now()
+    
+    # Get user's personal coupons that are active and haven't been used
+    user_coupons = Coupon.objects.filter(
+        user=request.user, 
+        is_active=True,
+        expiry_date__gt=current_time
+    ).order_by('-created_at')
+    
+    # Get global coupons that are active
+    global_coupons = Coupon.objects.filter(
+        user__isnull=True,
+        is_active=True,
+        expiry_date__gt=current_time
+    ).order_by('-created_at')
+    
+    # Combine coupons
+    all_coupons = list(user_coupons) + list(global_coupons)
+    
+    # Exclude coupons that have already been used by this user
+    used_coupon_codes = set(CouponUsage.objects.filter(user=request.user).values_list('coupon__code', flat=True))
+    
+    # Filter out used coupons manually since we're using two separate querysets
+    coupons = [coupon for coupon in all_coupons if coupon.code not in used_coupon_codes]
     
     # Get or generate user's referral code
     try:
@@ -955,7 +1131,7 @@ def my_coupons(request):
             return ''.join(random.choice(chars) for _ in range(8))
         
         code = generate_code()
-        while ReferralCode.objects.filter(code=code).exists():
+        while ReferralCode.objects.filter(code__iexact=code).exists():
             code = generate_code()
         
         # Create the referral code
@@ -963,13 +1139,11 @@ def my_coupons(request):
     
     # Get active referral offer
     from admin_side.models import ReferralOffer
-    from django.utils import timezone
-    now = timezone.now()
     
     referral_offer = ReferralOffer.objects.filter(
         is_active=True,
-        start_date__lte=now,
-        end_date__gte=now
+        start_date__lte=current_time,
+        end_date__gte=current_time
     ).first()
     
     # Get referral history
@@ -985,3 +1159,109 @@ def my_coupons(request):
     }
     
     return render(request, 'my_coupons.html', context)
+
+@login_required(login_url='login_page')
+def cancel_return_request(request, order_id):
+    order = get_object_or_404(Order, order_id=order_id, user=request.user)
+    
+    # Check if order has a pending return request
+    if order.status != 'RETURN_REQUESTED':
+        messages.error(request, "This order does not have a pending return request.")
+        return redirect('user_profile:orders_list')
+    
+    try:
+        with transaction.atomic():
+            # Update order status back to DELIVERED
+            order.status = 'DELIVERED'
+            order.return_requested = False
+            order.save()
+            
+            # Delete any pending wallet transactions for this return
+            wallet = Wallet.objects.filter(user=request.user).first()
+            if wallet:
+                WalletTransaction.objects.filter(
+                    wallet=wallet,
+                    reference_id=order.order_id,
+                    transaction_type='CREDIT',
+                    status='PENDING',
+                    description__contains='Refund for returned order'
+                ).delete()
+            
+            # Send email notification to admin
+            subject = f'Return Request Cancelled - Order #{order.order_id}'
+            message = f'''
+            Return request for Order #{order.order_id} has been cancelled by the customer.
+            
+            Customer: {request.user.get_full_name() or request.user.username}
+            Order Date: {order.created_at.strftime('%Y-%m-%d %H:%M:%S')}
+            Return Request Cancellation Date: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}
+            
+            Order Details:
+            Total Amount: ₹{order.total}
+            Items:
+            {chr(10).join([f"- {item.quantity}x {item.product.title}" for item in order.items.all()])}
+            '''
+            
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                ['booknestt@gmail.com'],
+                fail_silently=False,
+            )
+        
+        messages.success(request, "Return request cancelled successfully.")
+        return redirect('user_profile:orders_list')
+        
+    except Exception as e:
+        messages.error(request, f"An error occurred while cancelling your return request: {str(e)}")
+        return redirect('user_profile:orders_list')
+
+@login_required
+def get_item_rejection_reason(request, item_id):
+    """
+    API endpoint to get the rejection reason for a specific item from the order notes
+    """
+    try:
+        # Get the order item
+        item = OrderItem.objects.select_related('order', 'product').get(id=item_id, order__user=request.user)
+        
+        if item.status != 'RETURN_REJECTED':
+            return JsonResponse({'success': False, 'error': 'Item is not rejected'})
+        
+        # Get the order notes
+        order_notes = item.order.notes
+        
+        if not order_notes:
+            return JsonResponse({'success': True, 'rejection_reason': 'No reason provided'})
+        
+        # Find the rejection reason for this specific item
+        # The pattern looks for a note that mentions this item's rejection
+        product_title = item.product.title
+        pattern = fr"Item '.*?{re.escape(product_title)}.*?' return rejected\. Reason: (.*?)(?:\n|$)"
+        match = re.search(pattern, order_notes, re.IGNORECASE)
+        
+        if match:
+            rejection_reason = match.group(1).strip()
+            return JsonResponse({'success': True, 'rejection_reason': rejection_reason})
+        
+        # If no specific match, return the most recent rejection note
+        notes_lines = order_notes.split('\n')
+        for line in reversed(notes_lines):
+            if 'return rejected' in line.lower() and 'reason' in line.lower():
+                # Extract reason from line (assuming format: "... Reason: {reason}")
+                reason_part = line.split('Reason:', 1)
+                if len(reason_part) > 1:
+                    rejection_reason = reason_part[1].strip()
+                    return JsonResponse({'success': True, 'rejection_reason': rejection_reason})
+        
+        # As a fallback, return a generic message with the order notes
+        return JsonResponse({
+            'success': True, 
+            'rejection_reason': 'Your return request was rejected. Please contact customer support for more details.'
+        })
+        
+    except OrderItem.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Item not found'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})

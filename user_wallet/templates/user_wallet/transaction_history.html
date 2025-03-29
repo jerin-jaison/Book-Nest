@@ -158,10 +158,15 @@
                 {% for transaction in transactions %}
                 <tr>
                     <td>{{ transaction.created_at|date:"F d, Y H:i" }}</td>
-                    <td>{{ transaction.description }}</td>
+                    <td>
+                        {{ transaction.description }}
+                        {% if "Refund" in transaction.description %}
+                        <span class="badge bg-success" style="margin-left: 5px;">Refund</span>
+                        {% endif %}
+                    </td>
                     <td>
                         {% if transaction.reference_id %}
-                        <a href="#" class="reference-link">#{{ transaction.reference_id }}</a>
+                        <a href="{% url 'user_profile:order_detail' transaction.reference_id %}" class="reference-link">#{{ transaction.reference_id }}</a>
                         {% else %}
                         -
                         {% endif %}

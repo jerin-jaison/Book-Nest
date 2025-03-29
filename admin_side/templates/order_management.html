@@ -40,6 +40,8 @@
     .badge.bg-cancelled { background-color: #f8d7da !important; color: #721c24; }
     .badge.bg-return-pending { background-color: #e2e3e5 !important; color: #383d41; }
     .badge.bg-return-approved { background-color: #d1ecf1 !important; color: #0c5460; }
+    .badge.bg-return-rejected { background-color: #f8d7da !important; color: #721c24; }
+    .badge.bg-return_rejected { background-color: #f8d7da !important; color: #721c24; }
 
     .btn-custom {
         background-color: var(--primary-color);
@@ -134,6 +136,68 @@
     .btn-sm.btn-outline {
         min-width: 90px;
         text-align: center;
+    }
+
+    /* Notification Styles */
+    #notification-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        max-width: 350px;
+    }
+
+    #notification-container .alert {
+        padding: 12px 15px;
+        margin-bottom: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        border-radius: 10px;
+        animation: slideIn 0.3s ease-out forwards;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    #notification-container .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+        border-color: #c3e6cb;
+    }
+
+    #notification-container .alert-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+        border-color: #f5c6cb;
+    }
+
+    #notification-container .alert-info {
+        background-color: #cce5ff;
+        color: #004085;
+        border-color: #b8daff;
+    }
+
+    #notification-container .btn-close {
+        background: transparent;
+        border: none;
+        float: right;
+        font-size: 1.2rem;
+        line-height: 1;
+        padding: 0;
+        margin-left: 10px;
+        opacity: 0.5;
+        transition: opacity 0.2s;
+    }
+
+    #notification-container .btn-close:hover {
+        opacity: 1;
     }
 </style>
 
@@ -250,10 +314,16 @@
                             <td>₹{{ order.total }}</td>
                             <td>
                                 <div class="dropdown">
-                                    <button class="badge bg-{{ order.status|lower }} dropdown-toggle border-0" 
+                                    <button id="status-badge-{{ order.order_id }}" class="badge bg-{{ order.status|lower }} dropdown-toggle border-0" 
                                             type="button" data-bs-toggle="dropdown"
                                             {% if order.status == 'CANCELLED' %}disabled{% endif %}>
-                                        {{ order.status }}
+                                        {% if order.return_requested and order.status != 'RETURNED' %}
+                                            Return Requested
+                                        {% elif order.status == 'RETURN_REJECTED' %}
+                                            Return Request Rejected
+                                        {% else %}
+                                            {{ order.status }}
+                                        {% endif %}
                                     </button>
                                     {% if order.status != 'CANCELLED' %}
                                     <ul class="dropdown-menu">
@@ -263,8 +333,6 @@
                                             onclick="updateStatus('{{ order.order_id }}', 'shipped')">Shipped</a></li>
                                         <li><a class="dropdown-item" href="#" 
                                             onclick="updateStatus('{{ order.order_id }}', 'delivered')">Delivered</a></li>
-                                        <!-- <li><a class="dropdown-item" href="#" 
-                                            onclick="updateStatus('{{ order.order_id }}', 'cancelled')">Cancelled</a></li> -->
                                         {% if order.return_requested %}
                                         <li><a class="dropdown-item" href="#" 
                                             onclick="updateStatus('{{ order.order_id }}', 'returned')">Returned</a></li>
@@ -365,21 +433,22 @@
             <div class="modal-body">
                 <form id="returnForm">
                     <div class="mb-3">
-                        <label class="form-label">Return Reason</label>
+                        <label class="form-label">Customer Return Reason</label>
                         <p id="returnReason" class="form-control-plaintext"></p>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Product Condition</label>
-                        <select class="form-select" id="productCondition" required>
+                    <div class="mb-3" id="conditionContainer">
+                        <label class="form-label">Product Condition <small class="text-muted">(only needed for rejection)</small></label>
+                        <select class="form-select" id="productCondition">
                             <option value="">Select condition...</option>
                             <option value="perfect">Perfect Condition</option>
                             <option value="good">Good Condition</option>
                             <option value="damaged">Damaged</option>
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Verification Notes</label>
-                        <textarea class="form-control" id="verificationNotes" rows="3" required></textarea>
+                    <div class="mb-3" id="verificationNotesContainer">
+                        <label class="form-label">Verification Notes <small class="text-muted">(only needed for rejection)</small></label>
+                        <textarea class="form-control" id="verificationNotes" rows="3"></textarea>
+                        <small class="text-muted" id="notesRequiredMessage" style="display: none;">Notes are required when rejecting a return request.</small>
                     </div>
                 </form>
             </div>
@@ -392,7 +461,56 @@
     </div>
 </div>
 
-
+<!-- Item Return Processing Modal -->
+<div class="modal fade" id="itemReturnModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Process Item Return Request</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="itemReturnForm">
+                    <div class="mb-3">
+                        <label class="form-label">Item</label>
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <img id="itemReturnImage" src="" alt="" class="rounded" style="width: 60px; height: 80px; object-fit: cover;">
+                            <div>
+                                <div id="itemReturnTitle" class="fw-medium"></div>
+                                <div id="itemReturnPrice" class="text-muted small"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Customer Return Reason</label>
+                        <p id="itemReturnReason" class="form-control-plaintext"></p>
+                    </div>
+                    <div class="mb-3" id="itemConditionContainer">
+                        <label class="form-label">Product Condition <small class="text-muted">(only needed for rejection)</small></label>
+                        <select class="form-select" id="itemProductCondition">
+                            <option value="">Select condition...</option>
+                            <option value="perfect">Perfect Condition</option>
+                            <option value="good">Good Condition</option>
+                            <option value="damaged">Damaged</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="itemVerificationNotesContainer">
+                        <label class="form-label">Verification Notes <small class="text-muted">(only needed for rejection)</small></label>
+                        <textarea class="form-control" id="itemVerificationNotes" rows="3"></textarea>
+                        <small class="text-muted" id="itemNotesRequiredMessage" style="display: none;">Notes are required when rejecting a return request.</small>
+                    </div>
+                    <input type="hidden" id="itemReturnId">
+                    <input type="hidden" id="itemReturnOrderId">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-custom" onclick="approveItemReturn()">Approve Return</button>
+                <button type="button" class="btn btn-danger" onclick="rejectItemReturn()">Reject Return</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
     // Update Order Status
@@ -429,7 +547,8 @@
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': csrfToken
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: `status=${newStatus.toUpperCase()}`
         })
@@ -440,20 +559,128 @@
                     throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
                 });
             }
-            return response.json();
+            try {
+                return response.json();
+            } catch (e) {
+                // If response is not valid JSON, still reload page since backend might have updated the status
+                console.log('Invalid JSON response, but continuing with reload');
+                location.reload();
+                return { success: true };
+            }
         })
         .then(data => {
             console.log('Response data:', data);
             if (data.success) {
-                location.reload();
+                // Update the status badge without reloading the page
+                for (const row of rows) {
+                    if (row.textContent.includes('#' + orderId)) {
+                        const statusBadge = row.querySelector('.badge');
+                        if (statusBadge) {
+                            // Update badge text and class
+                            statusBadge.textContent = newStatus.toUpperCase();
+                            // Remove old status classes
+                            statusBadge.classList.forEach(cls => {
+                                if (cls.startsWith('bg-')) {
+                                    statusBadge.classList.remove(cls);
+                                }
+                            });
+                            // Add new status class
+                            statusBadge.classList.add('bg-' + newStatus.toLowerCase());
+                        }
+                        break;
+                    }
+                }
+                
+                // Show success message
+                showNotification('Order status updated successfully', 'success');
+                
+                // Optionally reload after a short delay to get a fresh state
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
             } else {
-                alert('Error: ' + (data.message || 'Failed to update status'));
+                showNotification('Error: ' + (data.message || 'Failed to update status'), 'error');
             }
         })
         .catch(error => {
             console.error('Error details:', error);
-            alert('Failed to update order status. Please check the console for details.');
+            showNotification('Failed to update order status. Please try again.', 'error');
         });
+    }
+
+    // Show notification function
+    function showNotification(message, type = 'info') {
+        // Create notification container if it doesn't exist
+        let container = document.getElementById('notification-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'notification-container';
+            document.body.appendChild(container);
+        }
+        
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'}`;
+        
+        // Add appropriate icon
+        let icon = '';
+        if (type === 'success') {
+            icon = '<i class="bi bi-check-circle-fill me-2"></i>';
+        } else if (type === 'error') {
+            icon = '<i class="bi bi-exclamation-triangle-fill me-2"></i>';
+        } else {
+            icon = '<i class="bi bi-info-circle-fill me-2"></i>';
+        }
+        
+        // Create close button
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'btn-close';
+        closeBtn.innerHTML = '&times;';
+        closeBtn.addEventListener('click', () => {
+            container.removeChild(notification);
+        });
+        
+        // Add message with icon
+        notification.innerHTML = `
+            ${icon}${message}
+            <button type="button" class="btn-close">&times;</button>
+        `;
+        
+        // Add event listener to close button
+        notification.querySelector('.btn-close').addEventListener('click', () => {
+            try {
+                container.removeChild(notification);
+            } catch (e) {
+                console.error('Error removing notification:', e);
+            }
+        });
+        
+        // Add to container
+        container.appendChild(notification);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            try {
+                if (notification.parentNode === container) {
+                    notification.style.opacity = '0';
+                    notification.style.transform = 'translateX(100%)';
+                    notification.style.transition = 'opacity 0.5s, transform 0.5s';
+                    
+                    setTimeout(() => {
+                        try {
+                            if (notification.parentNode === container) {
+                                container.removeChild(notification);
+                            }
+                        } catch (e) {
+                            console.error('Error removing notification:', e);
+                        }
+                    }, 500);
+                }
+            } catch (e) {
+                console.error('Error fading notification:', e);
+            }
+        }, 5000);
     }
 
     // View Order Details
@@ -489,61 +716,203 @@
             });
     }
 
+    // Process Item Return
+    function processItemReturn(orderId, itemId, title, price, quantity, image, reason) {
+        document.getElementById('itemReturnOrderId').value = orderId;
+        document.getElementById('itemReturnId').value = itemId;
+        document.getElementById('itemReturnTitle').textContent = title;
+        document.getElementById('itemReturnPrice').textContent = `₹${price} x ${quantity}`;
+        document.getElementById('itemReturnReason').textContent = reason;
+        document.getElementById('itemReturnImage').src = image;
+        
+        // Reset form fields
+        document.getElementById('itemProductCondition').value = '';
+        document.getElementById('itemVerificationNotes').value = '';
+        
+        // Show modal
+        new bootstrap.Modal(document.getElementById('itemReturnModal')).show();
+    }
+
     // Approve Return
     function approveReturn() {
         const orderId = document.getElementById('returnForm').dataset.orderId;
-        const condition = document.getElementById('productCondition').value;
-        const notes = document.getElementById('verificationNotes').value;
-
+        const condition = document.getElementById('productCondition').value || '';
+        const notes = document.getElementById('verificationNotes').value || '';
+        
+        // For approval, no need to require condition or notes
         fetch(`/admin_side/orders/${orderId}/approve-return/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': getCookie('csrftoken')
+                'X-CSRFToken': getCookie('csrftoken'),
+                'X-Requested-With': 'XMLHttpRequest'
             },
-            body: `condition=${condition}&notes=${notes}`
+            body: `condition=${condition}&notes=${encodeURIComponent(notes)}`
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                location.reload();
+                showNotification('Return request approved successfully', 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
             } else {
-                alert('Error: ' + (data.message || 'Failed to approve return'));
+                showNotification('Error: ' + (data.message || 'Failed to approve return'), 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Failed to approve return. Please try again.');
+            showNotification('Failed to approve return. Please try again.', 'error');
+        });
+    }
+
+    // Approve Item Return
+    function approveItemReturn() {
+        const orderId = document.getElementById('itemReturnOrderId').value;
+        const itemId = document.getElementById('itemReturnId').value;
+        const condition = document.getElementById('itemProductCondition').value || '';
+        const notes = document.getElementById('itemVerificationNotes').value || '';
+
+        // For approval, no need to require condition or notes
+        fetch(`/admin_side/orders/${orderId}/approve-item-return/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken'),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: `item_id=${itemId}&condition=${condition}&notes=${encodeURIComponent(notes)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Item return request approved successfully', 'success');
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('itemReturnModal'));
+                if (modal) {
+                    modal.hide();
+                }
+                // Reload order details
+                if (document.getElementById('orderDetailsModal').classList.contains('show')) {
+                    viewOrderDetails(orderId);
+                } else {
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                }
+            } else {
+                showNotification('Error: ' + (data.message || 'Failed to approve item return'), 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Failed to approve item return. Please try again.', 'error');
         });
     }
 
     // Reject Return
     function rejectReturn() {
         const orderId = document.getElementById('returnForm').dataset.orderId;
+        const condition = document.getElementById('productCondition').value;
         const notes = document.getElementById('verificationNotes').value;
+        
+        // For rejection, both condition and notes are required
+        if (!condition) {
+            showNotification('Please select a product condition before rejecting the return', 'error');
+            return;
+        }
+        
+        if (!notes) {
+            document.getElementById('notesRequiredMessage').style.display = 'block';
+            showNotification('Please provide verification notes before rejecting the return.', 'error');
+            return;
+        }
 
-        fetch(`/admin_side/orders/${orderId}/reject-return/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: `notes=${notes}`
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('Error: ' + (data.message || 'Failed to reject return'));
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Failed to reject return. Please try again.');
-        });
+        if (confirm('Are you sure you want to reject this return request?')) {
+            fetch(`/admin_side/orders/${orderId}/reject-return/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: `condition=${condition}&notes=${encodeURIComponent(notes)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Return request rejected successfully', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    showNotification('Error: ' + (data.message || 'Failed to reject return'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Failed to reject return. Please try again.', 'error');
+            });
+        }
     }
 
+    // Reject Item Return
+    function rejectItemReturn() {
+        const orderId = document.getElementById('itemReturnOrderId').value;
+        const itemId = document.getElementById('itemReturnId').value;
+        const condition = document.getElementById('itemProductCondition').value;
+        const notes = document.getElementById('itemVerificationNotes').value;
+        
+        // For rejection, both condition and notes are required
+        if (!condition) {
+            showNotification('Please select a product condition before rejecting the return', 'error');
+            return;
+        }
+        
+        if (!notes) {
+            document.getElementById('itemNotesRequiredMessage').style.display = 'block';
+            showNotification('Please provide verification notes before rejecting the return.', 'error');
+            return;
+        }
+
+        if (confirm('Are you sure you want to reject this item return request?')) {
+            fetch(`/admin_side/orders/${orderId}/reject-item-return/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: `item_id=${itemId}&condition=${condition}&notes=${encodeURIComponent(notes)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Item return request rejected successfully', 'success');
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('itemReturnModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                    // Reload order details
+                    if (document.getElementById('orderDetailsModal').classList.contains('show')) {
+                        viewOrderDetails(orderId);
+                    } else {
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1000);
+                    }
+                } else {
+                    showNotification('Error: ' + (data.message || 'Failed to reject item return'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Failed to reject item return. Please try again.', 'error');
+            });
+        }
+    }
+    
     // Update Stock
     function updateStock(productId) {
         const newStock = prompt('Enter new stock quantity:');
@@ -552,21 +921,25 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': getCookie('csrftoken')
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: `stock=${newStock}`
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    location.reload();
+                    showNotification('Stock updated successfully', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
                 } else {
-                    alert('Error: ' + (data.message || 'Failed to update stock'));
+                    showNotification('Error: ' + (data.message || 'Failed to update stock'), 'error');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Failed to update stock. Please try again.');
+                showNotification('Failed to update stock. Please try again.', 'error');
             });
         }
     }
@@ -640,5 +1013,55 @@
         const params = new URLSearchParams(window.location.search);
         window.location.href = `/admin_side/orders/export/?${params.toString()}`;
     }
+
+    // Check for mixed item statuses and update order status badges
+    document.addEventListener('DOMContentLoaded', function() {
+        {% for order in orders %}
+        (function() {
+            const orderId = "{{ order.order_id }}";
+            // This will store info about all items in the order
+            const itemStatuses = [
+                {% for item in order.items.all %}
+                "{{ item.status }}"{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ];
+            
+            // Skip if only one item
+            if (itemStatuses.length <= 1) return;
+            
+            // Count items with each status
+            let requestedCount = 0;
+            let rejectedCount = 0;
+            let returnedCount = 0;
+            let totalItems = itemStatuses.length;
+            
+            itemStatuses.forEach(status => {
+                if (status === 'RETURN_REQUESTED') requestedCount++;
+                else if (status === 'RETURN_REJECTED') rejectedCount++;
+                else if (status === 'RETURNED') returnedCount++;
+            });
+            
+            // Check if we have mixed statuses
+            if ((requestedCount > 0 || rejectedCount > 0 || returnedCount > 0) && 
+                (requestedCount < totalItems || rejectedCount < totalItems || returnedCount < totalItems)) {
+                
+                const statusBadge = document.getElementById(`status-badge-${orderId}`);
+                if (!statusBadge) return;
+                
+                // Update the badge text and class based on priority
+                if (requestedCount > 0) {
+                    statusBadge.textContent = (requestedCount === totalItems) ? 'Return Requested' : 'Partial Return Requested';
+                    statusBadge.className = 'badge bg-return-pending dropdown-toggle border-0';
+                } else if (rejectedCount > 0) {
+                    statusBadge.textContent = (rejectedCount === totalItems) ? 'Return Request Rejected' : 'Partial Return Rejected';
+                    statusBadge.className = 'badge bg-return-rejected dropdown-toggle border-0';
+                } else if (returnedCount > 0) {
+                    statusBadge.textContent = (returnedCount === totalItems) ? 'RETURNED' : 'Partially Returned';
+                    statusBadge.className = 'badge bg-returned dropdown-toggle border-0';
+                }
+            }
+        })();
+        {% endfor %}
+    });
 </script>
 {% endblock %} 

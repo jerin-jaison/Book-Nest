@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Offer Debugging</h1>
+    <p class="text-muted">Current time: {{ now }}</p>
+
+    {% if product %}
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h2>Product Details</h2>
+            </div>
+            <div class="card-body">
+                <h3>{{ product.title }}</h3>
+                <p><strong>ID:</strong> {{ product.id }}</p>
+                <p><strong>Category:</strong> {{ product.category.name }} (ID: {{ product.category.id }})</p>
+                <p><strong>Regular Price:</strong> ₹{{ product.price }}</p>
+                <p><strong>Discount Price:</strong> {% if product.discount_price %}₹{{ product.discount_price }}{% else %}None{% endif %}</p>
+                
+                <h4 class="mt-4">Best Offer</h4>
+                {% if best_offer %}
+                    <div class="alert alert-success">
+                        <p><strong>Offer ID:</strong> {{ best_offer.id }}</p>
+                        <p><strong>Title:</strong> {{ best_offer.title }}</p>
+                        <p><strong>Type:</strong> {% if best_offer.product %}Product Offer{% else %}Category Offer{% endif %}</p>
+                        <p><strong>Discount:</strong> {{ best_offer.discount_percentage }}%</p>
+                        <p><strong>Is Valid:</strong> {{ best_offer.is_valid }}</p>
+                        <p><strong>Is Active:</strong> {{ best_offer.is_active }}</p>
+                        <p><strong>Start Date:</strong> {{ best_offer.start_date }}</p>
+                        <p><strong>End Date:</strong> {{ best_offer.end_date }}</p>
+                        <p><strong>Final Price with Offer:</strong> ₹{{ offer_price }}</p>
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning">No best offer found for this product.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h3>Product Offers ({{ product_offers|length }})</h3>
+                    </div>
+                    <div class="card-body">
+                        {% if product_offers %}
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Title</th>
+                                        <th>Discount</th>
+                                        <th>Active</th>
+                                        <th>Valid</th>
+                                        <th>Date Range</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for offer in product_offers %}
+                                    <tr>
+                                        <td>{{ offer.id }}</td>
+                                        <td>{{ offer.title }}</td>
+                                        <td>{{ offer.discount_percentage }}%</td>
+                                        <td>{{ offer.is_active }}</td>
+                                        <td>{{ offer.is_valid }}</td>
+                                        <td>{{ offer.start_date|date:"Y-m-d H:i" }} to {{ offer.end_date|date:"Y-m-d H:i" }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <p>No product offers found for this product.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h3>Category Offers ({{ category_offers|length }})</h3>
+                    </div>
+                    <div class="card-body">
+                        {% if category_offers %}
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Title</th>
+                                        <th>Discount</th>
+                                        <th>Active</th>
+                                        <th>Valid</th>
+                                        <th>Date Range</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for offer in category_offers %}
+                                    <tr>
+                                        <td>{{ offer.id }}</td>
+                                        <td>{{ offer.title }}</td>
+                                        <td>{{ offer.discount_percentage }}%</td>
+                                        <td>{{ offer.is_active }}</td>
+                                        <td>{{ offer.is_valid }}</td>
+                                        <td>{{ offer.start_date|date:"Y-m-d H:i" }} to {{ offer.end_date|date:"Y-m-d H:i" }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <p>No category offers found for this product's category.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h2>All Products with Offers</h2>
+            </div>
+            <div class="card-body">
+                {% if products %}
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Title</th>
+                                <th>Category</th>
+                                <th>Price</th>
+                                <th>Best Offer</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in products %}
+                            <tr>
+                                <td>{{ product.id }}</td>
+                                <td>{{ product.title }}</td>
+                                <td>{{ product.category.name }}</td>
+                                <td>₹{{ product.price }}</td>
+                                <td>
+                                    {% with best_offer=product.get_best_offer %}
+                                        {% if best_offer %}
+                                            {{ best_offer.discount_percentage }}% off
+                                            ({% if best_offer.product %}Product{% else %}Category{% endif %})
+                                        {% else %}
+                                            None
+                                        {% endif %}
+                                    {% endwith %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'debug_offers' product.id %}" class="btn btn-sm btn-info">Debug</a>
+                                    <a href="{% url 'product_detail' product.slug %}" class="btn btn-sm btn-primary">View</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p>No products with active offers found.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h3>Active Product Offers ({{ product_offers|length }})</h3>
+                    </div>
+                    <div class="card-body">
+                        {% if product_offers %}
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Product</th>
+                                        <th>Title</th>
+                                        <th>Discount</th>
+                                        <th>Date Range</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for offer in product_offers %}
+                                    <tr>
+                                        <td>{{ offer.id }}</td>
+                                        <td>{{ offer.product.title }}</td>
+                                        <td>{{ offer.title }}</td>
+                                        <td>{{ offer.discount_percentage }}%</td>
+                                        <td>{{ offer.start_date|date:"Y-m-d H:i" }} to {{ offer.end_date|date:"Y-m-d H:i" }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <p>No active product offers found.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h3>Active Category Offers ({{ category_offers|length }})</h3>
+                    </div>
+                    <div class="card-body">
+                        {% if category_offers %}
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Category</th>
+                                        <th>Title</th>
+                                        <th>Discount</th>
+                                        <th>Date Range</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for offer in category_offers %}
+                                    <tr>
+                                        <td>{{ offer.id }}</td>
+                                        <td>{{ offer.category.name }}</td>
+                                        <td>{{ offer.title }}</td>
+                                        <td>{{ offer.discount_percentage }}%</td>
+                                        <td>{{ offer.start_date|date:"Y-m-d H:i" }} to {{ offer.end_date|date:"Y-m-d H:i" }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <p>No active category offers found.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %} 

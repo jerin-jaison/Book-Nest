@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load custom_filters %}
 
 {% block extra_css %}
 <style>
@@ -15,19 +16,21 @@
         position: fixed;
         top: 20px;
         right: 20px;
-        z-index: 1000;
+        z-index: 1100;
     }
 
     .toast {
         background: white;
         border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         margin-bottom: 15px;
         padding: 15px 20px;
         animation: slideIn 0.3s ease-out;
         border: none;
         transition: all 0.3s ease;
         max-width: 400px;
+        opacity: 1 !important;
+        display: block !important;
     }
 
     .toast.success {
@@ -298,10 +301,22 @@
 {% block content %}
 <div class="container mt-4">
     <!-- Toast Container for Messages -->
-    <div class="toast-container"></div>
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;"></div>
 
     <!-- Hidden CSRF Token -->
     {% csrf_token %}
+    
+    <!-- Message Alerts from Django Messages -->
+    {% if messages %}
+    <div class="messages-container mb-4">
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     <!-- Category Navigation -->
     <div class="row mb-4">
@@ -318,6 +333,114 @@
                 </a>
                 {% endfor %}
             </div>
+        </div>
+    </div>
+
+    <!-- Filter Button -->
+    <div class="position-fixed" style="left: 20px; top: 50%; transform: translateY(-50%); z-index: 1000;">
+        <button class="btn btn-custom rounded-circle shadow d-flex align-items-center justify-content-center" type="button" data-bs-toggle="offcanvas" data-bs-target="#filterOffcanvas" aria-controls="filterOffcanvas" title="Filter Books" style="width: 50px; height: 50px; box-shadow: 0 4px 10px rgba(139, 69, 19, 0.3);">
+            <i class="fas fa-filter"></i>
+        </button>
+    </div>
+
+    <!-- Filter Offcanvas -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="filterOffcanvas" aria-labelledby="filterOffcanvasLabel" style="max-width: 350px;">
+        <div class="offcanvas-header border-bottom">
+            <h5 class="offcanvas-title" id="filterOffcanvasLabel" style="color: var(--primary-color);">
+                <i class="fas fa-filter me-2"></i>Filter Books
+            </h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <form method="GET" action="{% url 'product_page' %}" id="filterForm">
+                <!-- Search -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium">Search</label>
+                    <input type="text" class="form-control" name="search" value="{{ search_query }}" 
+                           placeholder="Search by title, author, or ISBN...">
+                </div>
+
+                <!-- Categories -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium">Category</label>
+                    <select class="form-select" name="category">
+                        <option value="">All Categories</option>
+                        <option value="self-help" {% if selected_category == 'self-help' %}selected{% endif %}>Self-Help</option>
+                        <option value="comics" {% if selected_category == 'comics' %}selected{% endif %}>Comics</option>
+                        <option value="sci-fi" {% if selected_category == 'sci-fi' %}selected{% endif %}>Science Fiction</option>
+                        <option value="fiction" {% if selected_category == 'fiction' %}selected{% endif %}>Fiction</option>
+                        <option value="non-fiction" {% if selected_category == 'non-fiction' %}selected{% endif %}>Non-Fiction</option>
+                        <option value="mystery" {% if selected_category == 'mystery' %}selected{% endif %}>Mystery & Thriller</option>
+                        <option value="romance" {% if selected_category == 'romance' %}selected{% endif %}>Romance</option>
+                        <option value="biography" {% if selected_category == 'biography' %}selected{% endif %}>Biography</option>
+                        {% for category in categories %}
+                            {% if category.id|stringformat:"s" != 'self-help' and category.id|stringformat:"s" != 'comics' and category.id|stringformat:"s" != 'sci-fi' and category.id|stringformat:"s" != 'fiction' and category.id|stringformat:"s" != 'non-fiction' and category.id|stringformat:"s" != 'mystery' and category.id|stringformat:"s" != 'romance' and category.id|stringformat:"s" != 'biography' %}
+                            <option value="{{ category.id }}" {% if category.id|stringformat:"s" == selected_category %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Language -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium">Language</label>
+                    <select class="form-select" name="language">
+                        <option value="">All Languages</option>
+                        
+                        <!-- Most Common -->
+                        <optgroup label="Most Common">
+                            <option value="english" {% if selected_language == 'english' %}selected{% endif %}>English</option>
+                        </optgroup>
+                        
+                        <!-- Indian Languages -->
+                        <optgroup label="Indian Languages">
+                            <option value="tamil" {% if selected_language == 'tamil' %}selected{% endif %}>Tamil</option>
+                            <option value="telugu" {% if selected_language == 'telugu' %}selected{% endif %}>Telugu</option>
+                            <option value="malayalam" {% if selected_language == 'malayalam' %}selected{% endif %}>Malayalam</option>
+                            <option value="hindi" {% if selected_language == 'hindi' %}selected{% endif %}>Hindi</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <!-- Price Range -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium">Price Range</label>
+                    <div class="row g-2">
+                        <div class="col">
+                            <input type="number" class="form-control" name="min_price" value="{{ min_price }}" 
+                                   placeholder="Min" min="0">
+                        </div>
+                        <div class="col">
+                            <input type="number" class="form-control" name="max_price" value="{{ max_price }}" 
+                                   placeholder="Max" min="0">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sort By -->
+                <div class="mb-4">
+                    <label class="form-label fw-medium">Sort By</label>
+                    <select class="form-select" name="sort_by">
+                        <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Title (A-Z)</option>
+                        <option value="price_low" {% if sort_by == 'price_low' %}selected{% endif %}>Price: Low to High</option>
+                        <option value="price_high" {% if sort_by == 'price_high' %}selected{% endif %}>Price: High to Low</option>
+                        <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest First</option>
+                        <option value="discount" {% if sort_by == 'discount' %}selected{% endif %}>Highest Discount</option>
+                    </select>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-custom">
+                        Apply Filters
+                    </button>
+                    <button type="button" class="btn btn-outline-custom" onclick="resetFilters()">
+                        Reset Filters
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -383,13 +506,58 @@
                     <div class="mb-2">
                         <div class="d-flex align-items-center">
                             <div class="star-rating" style="font-size: 0.9rem;">
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star-half-alt"></i>
+                                {% with rating=product_ratings|get_item:product.id|default:0 %}
+                                    {% if rating >= 1 %}
+                                        <i class="fas fa-star"></i>
+                                    {% elif rating >= 0.5 %}
+                                        <i class="fas fa-star-half-alt"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                    
+                                    {% if rating >= 2 %}
+                                        <i class="fas fa-star"></i>
+                                    {% elif rating >= 1.5 %}
+                                        <i class="fas fa-star-half-alt"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                    
+                                    {% if rating >= 3 %}
+                                        <i class="fas fa-star"></i>
+                                    {% elif rating >= 2.5 %}
+                                        <i class="fas fa-star-half-alt"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                    
+                                    {% if rating >= 4 %}
+                                        <i class="fas fa-star"></i>
+                                    {% elif rating >= 3.5 %}
+                                        <i class="fas fa-star-half-alt"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                    
+                                    {% if rating >= 5 %}
+                                        <i class="fas fa-star"></i>
+                                    {% elif rating >= 4.5 %}
+                                        <i class="fas fa-star-half-alt"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                {% endwith %}
                             </div>
-                            <span class="text-muted ms-2" style="font-size: 0.8rem;">(4.5)</span>
+                            <span class="text-muted ms-2" style="font-size: 0.8rem;">
+                                ({{ product_ratings|get_item:product.id|default:"0.0" }}) 
+                                {% with review_count=product_review_counts|get_item:product.id|default:0 %}
+                                    {% if review_count > 0 %}
+                                        {{ review_count }} review{{ review_count|pluralize }}
+                                    {% else %}
+                                        No reviews
+                                    {% endif %}
+                                {% endwith %}
+                            </span>
                         </div>
                     </div>
 
@@ -397,8 +565,8 @@
                     <div class="d-flex align-items-center mb-3">
                         {% if product.get_best_offer %}
                             {% with best_offer=product.get_best_offer %}
-                                {% if best_offer.is_valid and best_offer.end_date > now %}
-                                    <span class="price-tag me-2">₹{{ best_offer.get_discounted_price }}</span>
+                                {% if best_offer.is_valid %}
+                                    <span class="price-tag me-2">₹{{ product.get_offer_price }}</span>
                                     <span class="text-decoration-line-through discount-price">₹{{ product.price }}</span>
                                     <span class="badge bg-danger ms-2">{{ best_offer.discount_percentage }}% off</span>
                                 {% elif product.discount_price %}
@@ -423,6 +591,12 @@
                             data-product-title="{{ product.title }}">
                         <i class="fas fa-cart-plus me-1"></i> Add to Cart
                     </button>
+                    <!-- Non-JavaScript fallback form (hidden) -->
+                    <form action="{% url 'cart_section:add_to_cart' product_id=product.id %}" method="POST" class="d-none">
+                        {% csrf_token %}
+                        <input type="hidden" name="quantity" value="1">
+                        <button type="submit" class="btn btn-primary w-100">Add to Cart</button>
+                    </form>
                     {% else %}
                     <button class="add-to-cart-btn w-100" disabled>
                         <i class="fas fa-times me-1"></i> Out of Stock
@@ -471,6 +645,28 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize toast container
+    if (!document.querySelector('.toast-container')) {
+        const toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '1100';
+        document.body.appendChild(toastContainer);
+    }
+
+    // Check if there are any Django messages that should be displayed as toasts
+    {% if messages %}
+        {% for message in messages %}
+            showToast(
+                '{{ message.tags|title }}', 
+                `<div class="d-flex align-items-center">
+                    <i class="fas fa-{% if message.tags == 'success' %}check-circle text-success{% elif message.tags == 'error' %}exclamation-circle text-danger{% elif message.tags == 'warning' %}exclamation-triangle text-warning{% else %}info-circle text-info{% endif %} me-2" style="font-size: 1.5rem;"></i>
+                    <div>{{ message }}</div>
+                </div>`,
+                '{{ message.tags }}'
+            );
+        {% endfor %}
+    {% endif %}
+
     // Add click event listeners to all add-to-cart buttons
     document.querySelectorAll('.add-to-cart-btn').forEach(button => {
         button.addEventListener('click', function() {
@@ -493,7 +689,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!csrfToken) {
                     showToast(
                         'Error',
-                        'CSRF token not found. Please refresh the page and try again.',
+                        `<div class="d-flex align-items-center">
+                            <i class="fas fa-exclamation-circle text-danger me-2" style="font-size: 1.5rem;"></i>
+                            <div>CSRF token not found. Please refresh the page and try again.</div>
+                        </div>`,
                         'error'
                     );
                     return;
@@ -503,7 +702,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-CSRFToken': csrfToken
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
                     },
                     body: 'quantity=1',
                     credentials: 'same-origin'
@@ -519,13 +719,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Show success message
                         showToast(
                             'Added to Cart',
-                            `<div class="d-flex align-items-center">
+                            `<div class="d-flex align-items-start">
                                 <i class="fas fa-check-circle text-success me-2" style="font-size: 1.5rem;"></i>
                                 <div>
-                                    <strong>${productTitle}</strong> has been added to your cart.
-                                    <div class="mt-2">
+                                    <div class="mb-2 fw-bold">${productTitle}</div>
+                                    <p class="mb-2">${data.message}</p>
+                                    <div class="d-flex gap-2">
                                         <a href="{% url 'cart_section:view_cart' %}" class="btn btn-sm btn-primary">View Cart</a>
-                                        <button class="btn btn-sm btn-outline-secondary ms-2" onclick="this.closest('.toast').remove()">Continue Shopping</button>
+                                        <button class="btn btn-sm btn-outline-secondary" onclick="this.closest('.toast').remove()">Continue Shopping</button>
                                     </div>
                                 </div>
                             </div>`,
@@ -537,12 +738,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (cartBadge) {
                             cartBadge.textContent = data.cart_count;
                         } else {
-                            const cartIcon = document.querySelector('.cart-icon');
+                            const cartIcon = document.querySelector('a[href="{% url 'cart_section:view_cart' %}"]');
                             if (cartIcon) {
                                 const badge = document.createElement('span');
                                 badge.className = 'cart-badge';
                                 badge.textContent = data.cart_count;
-                                cartIcon.parentElement.appendChild(badge);
+                                cartIcon.appendChild(badge);
                             }
                         }
 
@@ -554,7 +755,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         showToast(
                             'Error',
-                            data.message || 'Could not add item to cart. Please try again.',
+                            `<div class="d-flex align-items-center">
+                                <i class="fas fa-exclamation-circle text-danger me-2" style="font-size: 1.5rem;"></i>
+                                <div>${data.message || 'Could not add item to cart. Please try again.'}</div>
+                            </div>`,
                             'error'
                         );
                     }
@@ -563,7 +767,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.error('Error:', error);
                     showToast(
                         'Error',
-                        'Could not add item to cart. Please try again later.',
+                        `<div class="d-flex align-items-center">
+                            <i class="fas fa-exclamation-circle text-danger me-2" style="font-size: 1.5rem;"></i>
+                            <div>Could not add item to cart. Please try again later.</div>
+                        </div>`,
                         'error'
                     );
                 })
@@ -576,7 +783,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error:', error);
                 showToast(
                     'Error',
-                    'An unexpected error occurred. Please try again.',
+                    `<div class="d-flex align-items-center">
+                        <i class="fas fa-exclamation-circle text-danger me-2" style="font-size: 1.5rem;"></i>
+                        <div>An unexpected error occurred. Please try again.</div>
+                    </div>`,
                     'error'
                 );
                 // Reset button state
@@ -590,16 +800,18 @@ document.addEventListener('DOMContentLoaded', function() {
 function showToast(title, message, type = 'success') {
     const toastContainer = document.querySelector('.toast-container');
     if (!toastContainer) {
-        const newContainer = document.createElement('div');
-        newContainer.className = 'toast-container';
-        document.body.appendChild(newContainer);
+        console.error('Toast container not found!');
+        return;
     }
     
     const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
+    toast.className = `toast ${type} show`;
     toast.style.opacity = '1';
     toast.style.minWidth = '350px';
     toast.style.zIndex = '9999';
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
     
     // Create a unique ID for the toast
     const toastId = 'toast-' + Date.now();
@@ -627,6 +839,9 @@ function showToast(title, message, type = 'success') {
             }, 300);
         }, 5000);
     }
+    
+    // Log that toast has been created (for debugging)
+    console.log('Toast notification created:', title, type);
 }
 
 function toggleWishlist(event, productId, icon) {
@@ -667,6 +882,19 @@ function toggleWishlist(event, productId, icon) {
             'error'
         );
     });
+}
+
+function resetFilters() {
+    const form = document.getElementById('filterForm');
+    const inputs = form.querySelectorAll('input, select');
+    inputs.forEach(input => {
+        if (input.type === 'text' || input.type === 'number') {
+            input.value = '';
+        } else if (input.type === 'select-one') {
+            input.selectedIndex = 0;
+        }
+    });
+    form.submit();
 }
 </script>
 {% endblock %}

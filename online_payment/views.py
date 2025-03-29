@@ -74,97 +74,129 @@ def initiate_payment(request, order_id):
         messages.error(request, 'Failed to initiate payment. Please try again.')
         return redirect('cart_section:checkout')
 
+def verify_payment_signature(data):
+    """
+    Verify the payment signature received from Razorpay
+    """
+    try:
+        razorpay_payment_id = data.get('razorpay_payment_id', '')
+        razorpay_order_id = data.get('razorpay_order_id', '')
+        razorpay_signature = data.get('razorpay_signature', '')
+        
+        # Create signature for verification
+        params_dict = {
+            'razorpay_payment_id': razorpay_payment_id,
+            'razorpay_order_id': razorpay_order_id,
+            'razorpay_signature': razorpay_signature
+        }
+        
+        # Verify the payment signature
+        return razorpay_client.utility.verify_payment_signature(params_dict)
+    
+    except Exception as e:
+        logger.error(f"Error verifying payment signature: {str(e)}")
+        return False
+
 @csrf_exempt
 def payment_callback(request):
-    """
-    Handle the callback from Razorpay after payment
-    """
-    if request.method == 'POST':
-        try:
-            # Get payment data
-            payment_data = request.POST
-            logger.info(f"Received payment callback data: {payment_data}")
-            
-            # Verify signature
-            razorpay_payment_id = payment_data.get('razorpay_payment_id', '')
-            razorpay_order_id = payment_data.get('razorpay_order_id', '')
-            razorpay_signature = payment_data.get('razorpay_signature', '')
-            
-            logger.info(f"Payment ID: {razorpay_payment_id}")
-            logger.info(f"Order ID: {razorpay_order_id}")
-            
-            # Create signature for verification
-            params_dict = {
-                'razorpay_payment_id': razorpay_payment_id,
-                'razorpay_order_id': razorpay_order_id,
-                'razorpay_signature': razorpay_signature
-            }
-            
-            try:
-                # Verify signature
-                is_valid_signature = razorpay_client.utility.verify_payment_signature(params_dict)
-                logger.info(f"Signature verification result: {is_valid_signature}")
-            except Exception as e:
-                logger.error(f"Error verifying signature: {str(e)}")
-                is_valid_signature = False
-            
-            if is_valid_signature:
-                # Payment successful
-                # Find the order by Razorpay order ID
-                try:
-                    order = Order.objects.get(razorpay_order_id=razorpay_order_id)
-                    logger.info(f"Found order: {order.order_id}")
-                    
-                    try:
-                        # Verify payment status with Razorpay
-                        payment = razorpay_client.payment.fetch(razorpay_payment_id)
-                        logger.info(f"Payment status from Razorpay: {payment.get('status')}")
-                        
-                        if payment.get('status') == 'captured':
-                            # Update order payment details
-                            order.payment_id = razorpay_payment_id
-                            order.payment_status = 'PAID'
-                            order.payment_method = 'RAZORPAY'
-                            order.status = 'CONFIRMED'  # Update order status
-                            order.save()
-                            logger.info(f"Order {order.order_id} updated as paid and confirmed")
-                            
-                            # Process referral reward if applicable
-                            process_referral_reward(order)
-                            
-                            # Clear cart and session data
-                            Cart.objects.filter(user=order.user).delete()
-                            if 'coupon_code' in request.session:
-                                del request.session['coupon_code']
-                            if 'coupon_discount' in request.session:
-                                del request.session['coupon_discount']
-                            
-                            logger.info("Redirecting to order placed page")
-                            return redirect('cart_section:order_placed')
-                        else:
-                            logger.error(f"Payment not captured. Status: {payment.get('status')}")
-                            order.payment_status = 'FAILED'
-                            order.save()
-                            return redirect('online_payment:payment_failure')
-                    except Exception as e:
-                        logger.error(f"Error fetching payment status: {str(e)}")
-                        return redirect('online_payment:payment_failure')
-                
-                except Order.DoesNotExist:
-                    logger.error(f"Order not found for Razorpay order ID: {razorpay_order_id}")
-                    return redirect('online_payment:payment_failure')
-                except Exception as e:
-                    logger.error(f"Error processing payment: {str(e)}")
-                    return redirect('online_payment:payment_failure')
-            else:
-                logger.error("Invalid signature")
-                return redirect('online_payment:payment_failure')
+    try:
+        # Get payment data
+        razorpay_payment_id = request.POST.get('razorpay_payment_id')
+        razorpay_order_id = request.POST.get('razorpay_order_id')
+        razorpay_signature = request.POST.get('razorpay_signature')
         
-        except Exception as e:
-            logger.error(f"Error processing payment callback: {str(e)}")
-            return redirect('online_payment:payment_failure')
-    
-    return redirect('cart_section:checkout')
+        logger.info(f"Payment callback received: payment_id={razorpay_payment_id}, order_id={razorpay_order_id}")
+        
+        # Verify signature
+        if not verify_payment_signature(request.POST):
+            logger.error("Payment signature verification failed")
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Invalid payment signature',
+                'redirect_url': reverse('online_payment:payment_failure')
+            }, status=400)
+            
+        # Find the order using razorpay_order_id
+        try:
+            order = Order.objects.get(razorpay_order_id=razorpay_order_id)
+            logger.info(f"Found order: {order.order_id}, status: {order.status}, payment_status: {order.payment_status}")
+        except Order.DoesNotExist:
+            logger.error(f"Order not found for razorpay_order_id: {razorpay_order_id}")
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Order not found',
+                'redirect_url': reverse('online_payment:payment_failure')
+            }, status=400)
+        
+        # Verify payment status with Razorpay
+        payment = razorpay_client.payment.fetch(razorpay_payment_id)
+        logger.info(f"Payment status from Razorpay: {payment.get('status')}")
+        
+        if payment.get('status') == 'captured':
+            # Update order payment details
+            order.payment_id = razorpay_payment_id
+            order.payment_status = 'PAID'
+            order.payment_method = 'RAZORPAY'
+            order.status = 'CONFIRMED'  # Update order status
+            order.save()
+            
+            logger.info(f"Order {order.order_id} marked as PAID and CONFIRMED")
+            
+            # Clear session data
+            if 'current_order_id' in request.session:
+                del request.session['current_order_id']
+            if 'retry_order_id' in request.session:
+                del request.session['retry_order_id']
+            if 'retry_order_total' in request.session:
+                del request.session['retry_order_total']
+            if 'is_retry_payment' in request.session:
+                del request.session['is_retry_payment']
+            
+            # Process referral rewards if applicable
+            try:
+                referral_history = ReferralHistory.objects.filter(
+                    referred_user=order.user,
+                    reward_status='PENDING'
+                ).first()
+                
+                if referral_history:
+                    referral_history.reward_status = 'COMPLETED'
+                    referral_history.save()
+                    logger.info(f"Referral reward completed for user {order.user.username}")
+            except Exception as e:
+                logger.error(f"Error processing referral reward: {str(e)}")
+            
+            # Redirect to success page
+            success_url = reverse('online_payment:payment_success', args=[order.order_id])
+            logger.info(f"Redirecting to success page: {success_url}")
+            
+            return JsonResponse({
+                'status': 'success',
+                'redirect_url': success_url
+            })
+        else:
+            # Payment not captured
+            order.payment_status = 'FAILED'
+            order.save()
+            
+            logger.error(f"Payment failed. Razorpay status: {payment.get('status')}")
+            
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Payment failed',
+                'redirect_url': reverse('online_payment:payment_failure') + f'?order_id={order.order_id}'
+            }, status=400)
+            
+    except Exception as e:
+        logger.error(f"Error in payment callback: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e),
+            'redirect_url': reverse('online_payment:payment_failure')
+        }, status=500)
 
 @login_required(login_url='login_page')
 def payment_success(request, order_id):
@@ -173,6 +205,8 @@ def payment_success(request, order_id):
     """
     try:
         order = get_object_or_404(Order, order_id=order_id, user=request.user)
+        
+        logger.info(f"Payment success page for order: {order_id}")
         
         # Clear cart
         Cart.objects.filter(user=request.user).delete()
@@ -183,23 +217,53 @@ def payment_success(request, order_id):
         if 'coupon_discount' in request.session:
             del request.session['coupon_discount']
         
+        # Check if this was a retry payment
+        is_retry = request.session.get('is_retry_payment', False)
+        
         context = {
             'order': order,
+            'is_retry': is_retry,
         }
+        
+        # Clear retry flag
+        if 'is_retry_payment' in request.session:
+            del request.session['is_retry_payment']
+        
+        # Redirect to user profile after 3 seconds
+        context['redirect_url'] = reverse('user_profile:order_detail', args=[order_id])
+        context['countdown'] = 3
         
         return render(request, 'payment_success.html', context)
     
     except Exception as e:
         logger.error(f"Error displaying payment success page: {str(e)}")
         messages.error(request, 'An error occurred. Please check your orders for status.')
-        return redirect('user_profile:orders')
+        return redirect('user_profile:orders_list')
 
 @login_required(login_url='login_page')
 def payment_failure(request):
     """
     Display payment failure page
     """
-    return render(request, 'payment_failure.html')
+    try:
+        order_id = request.GET.get('order_id')
+        if order_id:
+            # If order_id is provided, update the order status
+            try:
+                order = Order.objects.get(order_id=order_id, user=request.user)
+                if order.payment_status == 'PENDING':
+                    order.payment_status = 'FAILED'
+                    order.save()
+                    logger.info(f"Order {order_id} marked as payment failed")
+            except Order.DoesNotExist:
+                logger.error(f"Order not found for ID: {order_id}")
+        
+        return render(request, 'payment_failure.html')
+    
+    except Exception as e:
+        logger.error(f"Error displaying payment failure page: {str(e)}")
+        messages.error(request, 'An error occurred. Please check your orders for status.')
+        return redirect('user_profile:orders_list')
 
 def process_referral_reward(order):
     """

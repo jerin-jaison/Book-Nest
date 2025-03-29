@@ -2,16 +2,19 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
-from django.db.models import Q, Case, When, DecimalField
-from admin_side.models import Product, Category, ReferralCode, ReferralHistory
+from django.db.models import Q, Case, When, DecimalField, Avg, Count, Sum
+from admin_side.models import Product, Category, ReferralCode, ReferralHistory, ProductOffer, CategoryOffer, Review
 from django.core.paginator import Paginator
 import random
 from django.core.mail import send_mail
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_protect
 from django.utils import timezone
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.conf import settings
 import logging
+from django.contrib.auth.decorators import login_required
+from django.core.validators import validate_email
+from django.utils.dateparse import parse_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -591,7 +594,7 @@ def home_view(request):
 @ensure_csrf_cookie
 def product_view(request):
     # Get all active products
-    products = Product.objects.filter(status='active')
+    products = Product.objects.filter(status='active').prefetch_related('reviews')
     
     # Get all categories for the navigation
     categories = Category.objects.all()
@@ -646,28 +649,6 @@ def product_view(request):
         except ValueError:
             pass
     
-    # Apply sorting
-    if sort_by == 'price_low':
-        products = products.annotate(
-            final_price=Case(
-                When(discount_price__isnull=False, then='discount_price'),
-                default='price',
-                output_field=DecimalField(),
-            )
-        ).order_by('final_price')
-    elif sort_by == 'price_high':
-        products = products.annotate(
-            final_price=Case(
-                When(discount_price__isnull=False, then='discount_price'),
-                default='price',
-                output_field=DecimalField(),
-            )
-        ).order_by('-final_price')
-    elif sort_by == 'newest':
-        products = products.order_by('-created_at')
-    elif sort_by == 'title':
-        products = products.order_by('title')
-    
     # Get available languages for filter
     available_languages = dict(Product.LANGUAGE_CHOICES)
     
@@ -683,13 +664,57 @@ def product_view(request):
         {'slug': 'biography', 'name': 'Biography'},
     ]
     
-    # Pagination
-    paginator = Paginator(products, 12)  # Show 12 products per page
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    # Convert queryset to list to work with individual products
+    products_list = list(products)
     
     # Get current time for offer validation
     now = timezone.now()
+    
+    # Calculate final prices including offers for each product
+    for product in products_list:
+        best_offer = product.get_best_offer()
+        if best_offer and best_offer.is_valid():
+            product._final_price = product.get_offer_price()
+        elif product.discount_price:
+            product._final_price = product.discount_price
+        else:
+            product._final_price = product.price
+            
+        # Calculate discount percentage for sorting by discount
+        if best_offer and best_offer.is_valid():
+            product.discount_percentage = best_offer.discount_percentage
+        elif product.discount_price:
+            product.discount_percentage = round(((product.price - product.discount_price) / product.price) * 100)
+        else:
+            product.discount_percentage = 0
+    
+    # Apply sorting with offer prices
+    if sort_by == 'price_low':
+        products_list.sort(key=lambda p: p._final_price)
+    elif sort_by == 'price_high':
+        products_list.sort(key=lambda p: p._final_price, reverse=True)
+    elif sort_by == 'newest':
+        products_list.sort(key=lambda p: p.created_at, reverse=True)
+    elif sort_by == 'discount':
+        products_list.sort(key=lambda p: p.discount_percentage, reverse=True)
+    elif sort_by == 'title':
+        products_list.sort(key=lambda p: p.title)
+    
+    # Calculate average ratings for each product
+    product_ratings = {}
+    product_review_counts = {}
+    
+    for product in products_list:
+        reviews = product.reviews.all()
+        avg_rating = reviews.aggregate(Avg('rating'))['rating__avg'] if reviews.exists() else 0
+        avg_rating = round(avg_rating, 1) if avg_rating else 0
+        product_ratings[product.id] = avg_rating
+        product_review_counts[product.id] = reviews.count()
+    
+    # Pagination
+    paginator = Paginator(products_list, 12)  # Show 12 products per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
     
     context = {
         'products': page_obj,
@@ -702,8 +727,10 @@ def product_view(request):
         'max_price': max_price,
         'sort_by': sort_by,
         'available_languages': available_languages,
-        'total_results': products.count(),
+        'total_results': len(products_list),
         'now': now,  # Pass current time for offer validation
+        'product_ratings': product_ratings,  # Add ratings to context
+        'product_review_counts': product_review_counts,  # Add review counts to context
     }
     
     return render(request, 'product_page.html', context)
@@ -712,7 +739,12 @@ def product_view(request):
 @ensure_csrf_cookie
 def product_detail_view(request, slug):
     # Get the product with prefetched images
-    product = get_object_or_404(Product.objects.prefetch_related('additional_images'), slug=slug)
+    product = get_object_or_404(Product.objects.prefetch_related('additional_images', 'reviews'), slug=slug)
+    
+    # Remove welcome message to avoid duplicate notifications
+    # if request.session.get('product_viewed_first_time') != slug:
+    #     request.session['product_viewed_first_time'] = slug
+    #     messages.info(request, f"Welcome to {product.title}! You can add this book to your cart or wishlist.")
     
     # Get related products (same category)
     related_products = Product.objects.filter(
@@ -725,13 +757,32 @@ def product_detail_view(request, slug):
     for img in product.additional_images.all():
         product_images.append({'url': img.image.url, 'is_cover': False})
     
-    # Demo ratings (we'll implement real ratings later)
-    demo_ratings = [
-        {'user': 'John', 'rating': 4.5, 'comment': 'This book changed my life! Clear and practical advice.', 'date': '2024-01-15'},
-        {'user': 'Alice', 'rating': 5.0, 'comment': 'Excellent read, highly recommended!', 'date': '2024-02-01'},
-    ]
+    # Get actual reviews for the product
+    reviews = product.reviews.all().select_related('user')
     
-    # Check if product is in user's wishlist (from either model)
+    # Calculate average rating
+    average_rating = reviews.aggregate(Avg('rating'))['rating__avg'] if reviews.exists() else 0
+    average_rating = round(average_rating, 1) if average_rating else 0
+    
+    # Check if user can leave a review (has purchased the product)
+    can_review = False
+    has_reviewed = False
+    from cart_section.models import OrderItem, Order
+    
+    if request.user.is_authenticated:
+        # Check if the user has already reviewed this product
+        has_reviewed = Review.objects.filter(user=request.user, product=product).exists()
+        
+        # Check if the user has purchased this product and order is delivered
+        has_purchased = OrderItem.objects.filter(
+            order__user=request.user,
+            product=product,
+            order__status__in=['DELIVERED', 'COMPLETED']
+        ).exists()
+        
+        can_review = has_purchased and not has_reviewed
+    
+    # Check if product is in user's wishlist
     is_in_wishlist = False
     if request.user.is_authenticated:
         # Check in user_authentication.Wishlist
@@ -742,28 +793,67 @@ def product_detail_view(request, slug):
         profile_wishlist = WishlistItem.objects.filter(user=request.user, product=product).exists()
         
         is_in_wishlist = auth_wishlist or profile_wishlist
+        
+        # Remove notification for wishlist status
+        # if is_in_wishlist:
+        #     messages.success(request, "This product is in your wishlist. You can purchase it now!")
     
     # Get current time for offer validation
     now = timezone.now()
+    
+    # Debug information for offers
+    best_offer = product.get_best_offer()
+    offer_info = None
+    if best_offer:
+        offer_info = {
+            'id': best_offer.id,
+            'title': best_offer.title,
+            'discount': best_offer.discount_percentage,
+            'is_valid': best_offer.is_valid(),
+            'start_date': best_offer.start_date,
+            'end_date': best_offer.end_date,
+            'now': now,
+            'is_active': best_offer.is_active,
+            'type': 'Product Offer' if hasattr(best_offer, 'product') else 'Category Offer'
+        }
+        
+        # Remove offer notification 
+        # if best_offer.is_valid():
+        #     messages.info(request, f"Special offer: {best_offer.discount_percentage}% discount on this product!")
     
     context = {
         'product': product,
         'product_images': product_images,
         'related_products': related_products,
-        'ratings': demo_ratings,
-        'average_rating': 4.5,  # Demo average rating
-        'rating_count': len(demo_ratings),
+        'reviews': reviews,
+        'average_rating': average_rating,
+        'rating_count': reviews.count(),
         'is_in_wishlist': is_in_wishlist,
         'now': now,  # Pass current time for offer validation
+        'offer_info': offer_info,  # Debug information
+        'can_review': can_review,
+        'has_reviewed': has_reviewed,
     }
     
     return render(request, 'product_detail.html', context)
 
 
 def signout_view(request):
+    # Invalidate session on the server side
     request.session.flush()
+    
+    # Log the user out
     logout(request)
-    return redirect('login_page')
+    
+    # Redirect to login page with a response that has proper cache-control headers
+    response = redirect('login_page')
+    
+    # Add cache control headers to ensure browsers don't use cached versions of pages
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate, private'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    
+    return response
 
 # Debug view to print current OTP (only available in DEBUG mode)
 def debug_otp(request):
@@ -799,7 +889,6 @@ def debug_otp(request):
         </html>
         """
         
-        from django.http import HttpResponse
         return HttpResponse(html_response)
     else:
         return JsonResponse({
@@ -809,3 +898,236 @@ def debug_otp(request):
     
 def custom_404_view(request, exception):
     return render(request, '404_page.html', status=404)
+
+# Debug view for offers (only available to superusers)
+@login_required
+def debug_offers(request, product_id=None):
+    if not request.user.is_superuser:
+        messages.error(request, 'You do not have permission to access this page.')
+        return redirect('home_page')
+    
+    from admin_side.models import Product, ProductOffer, CategoryOffer
+    from django.utils import timezone
+    
+    now = timezone.now()
+    context = {
+        'now': now,
+        'products': [],
+        'product_offers': [],
+        'category_offers': []
+    }
+    
+    if product_id:
+        # Get specific product
+        try:
+            product = Product.objects.get(id=product_id)
+            
+            # Get all product offers for this product
+            product_offers = ProductOffer.objects.filter(product=product).order_by('-created_at')
+            
+            # Get all category offers for this product's category
+            category_offers = []
+            if product.category:
+                category_offers = CategoryOffer.objects.filter(category=product.category).order_by('-created_at')
+            
+            # Get the best offer
+            best_offer = product.get_best_offer()
+            
+            context.update({
+                'product': product,
+                'product_offers': product_offers,
+                'category_offers': category_offers,
+                'best_offer': best_offer,
+                'offer_price': product.get_offer_price() if best_offer else None
+            })
+        except Product.DoesNotExist:
+            messages.error(request, f'Product with ID {product_id} not found.')
+    else:
+        # Get all products with active offers
+        products_with_offers = Product.objects.filter(
+            offers__is_active=True,
+            offers__start_date__lte=now,
+            offers__end_date__gte=now
+        ).distinct()
+        
+        # Get all categories with active offers
+        from admin_side.models import Category
+        categories_with_offers = Category.objects.filter(
+            offers__is_active=True,
+            offers__start_date__lte=now,
+            offers__end_date__gte=now
+        ).distinct()
+        
+        # Get products in those categories
+        products_with_category_offers = Product.objects.filter(
+            category__in=categories_with_offers
+        ).distinct()
+        
+        # Combine the lists
+        all_products_with_offers = list(products_with_offers) + list(products_with_category_offers)
+        # Remove duplicates
+        all_products_with_offers = list(set(all_products_with_offers))
+        
+        context['products'] = all_products_with_offers
+        context['product_offers'] = ProductOffer.objects.filter(is_active=True).order_by('-created_at')
+        context['category_offers'] = CategoryOffer.objects.filter(is_active=True).order_by('-created_at')
+    
+    return render(request, 'debug_offers.html', context)
+
+def contact_view(request):
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        email = request.POST.get('email')
+        subject = request.POST.get('subject')
+        message = request.POST.get('message')
+        
+        # Check if the request is AJAX
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        
+        try:
+            # Send email to admin
+            subject = f'Contact Form: {subject}'
+            message = f'''
+From: {name} <{email}>
+
+Message:
+{message}
+            '''
+            
+            send_mail(
+                subject,
+                message,
+                email,  # From email
+                [settings.EMAIL_HOST_USER],  # To email (admin)
+                fail_silently=False,
+            )
+            
+            if is_ajax:
+                return JsonResponse({'status': 'success', 'message': 'Your message has been sent successfully!'})
+            messages.success(request, 'Your message has been sent successfully!')
+            
+        except Exception as e:
+            logger.error(f"Error sending contact form email: {str(e)}")
+            if is_ajax:
+                return JsonResponse({'status': 'error', 'message': 'Failed to send message. Please try again.'})
+            messages.error(request, 'Failed to send message. Please try again.')
+        
+        return redirect('contact')
+    
+    return render(request, 'contact.html')
+
+@login_required
+def add_review(request, product_id):
+    """View to handle adding product reviews"""
+    if request.method != 'POST':
+        return redirect('product_list')
+    
+    # Get the product
+    product = get_object_or_404(Product, id=product_id)
+    
+    # Check if user has purchased this product
+    from cart_section.models import OrderItem
+    has_purchased = OrderItem.objects.filter(
+        order__user=request.user,
+        product=product,
+        order__status__in=['DELIVERED', 'COMPLETED']
+    ).exists()
+    
+    # Check if user has already reviewed this product
+    from admin_side.models import Review
+    has_reviewed = Review.objects.filter(user=request.user, product=product).exists()
+    
+    if not has_purchased:
+        messages.error(request, "You can only review products you have purchased.")
+        return redirect('product_detail', slug=product.slug)
+    
+    if has_reviewed:
+        messages.error(request, "You have already reviewed this product.")
+        return redirect('product_detail', slug=product.slug)
+    
+    # Get review data
+    rating = request.POST.get('rating')
+    comment = request.POST.get('comment')
+    
+    if not rating or not comment:
+        messages.error(request, "Please provide both rating and comment.")
+        return redirect('product_detail', slug=product.slug)
+    
+    try:
+        # Create the review
+        review = Review(
+            product=product,
+            user=request.user,
+            rating=int(rating),
+            comment=comment,
+            verified_purchase=True  # Since we've verified the purchase
+        )
+        review.save()
+        messages.success(request, f"Thank you for your {rating}-star review! Your feedback helps other customers make informed decisions.")
+    except Exception as e:
+        messages.error(request, f"Error submitting review: {str(e)}")
+    
+    return redirect('product_detail', slug=product.slug)
+
+@login_required
+def edit_review(request, review_id):
+    """View to handle editing a review"""
+    # Get the review and check ownership
+    from admin_side.models import Review
+    review = get_object_or_404(Review, id=review_id)
+    
+    if review.user != request.user:
+        messages.error(request, "You can only edit your own reviews.")
+        return redirect('product_detail', slug=review.product.slug)
+    
+    if request.method == 'POST':
+        # Get updated data
+        rating = request.POST.get('rating')
+        comment = request.POST.get('comment')
+        
+        if not rating or not comment:
+            messages.error(request, "Please provide both rating and comment.")
+            return redirect('product_detail', slug=review.product.slug)
+        
+        try:
+            # Update the review
+            old_rating = review.rating
+            review.rating = int(rating)
+            review.comment = comment
+            review.updated_at = timezone.now()  # Update timestamp
+            review.save()
+            
+            # Customize the message based on rating change
+            if old_rating < int(rating):
+                messages.success(request, f"Your review has been updated! We're glad to see you've given this product a higher rating.")
+            elif old_rating > int(rating):
+                messages.success(request, f"Your review has been updated. We appreciate your honest feedback.")
+            else:
+                messages.success(request, f"Your review has been updated successfully!")
+        except Exception as e:
+            messages.error(request, f"Error updating review: {str(e)}")
+    
+    return redirect('product_detail', slug=review.product.slug)
+
+@login_required
+def delete_review(request, review_id):
+    """View to handle deleting a review"""
+    # Get the review and check ownership
+    from admin_side.models import Review
+    review = get_object_or_404(Review, id=review_id)
+    product_slug = review.product.slug
+    product_title = review.product.title
+    
+    if review.user != request.user:
+        messages.error(request, "You can only delete your own reviews.")
+        return redirect('product_detail', slug=product_slug)
+    
+    if request.method == 'POST':
+        try:
+            # Delete the review
+            review.delete()
+            messages.success(request, f"Your review for '{product_title}' has been deleted. You can add a new review anytime.")
+        except Exception as e:
+            messages.error(request, f"Error deleting review: {str(e)}")
+    
+    return redirect('product_detail', slug=product_slug)

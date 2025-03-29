@@ -224,7 +224,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if coupon.is_used %}
+                                    {% if coupon.is_used and coupon.user %}
                                         <span class="badge bg-secondary">Used</span>
                                     {% elif coupon.is_active %}
                                         {% if coupon.expiry_date < today %}
@@ -238,11 +238,11 @@
                                 </td>
                                 <td>
                                     <button class="btn btn-sm btn-info edit-coupon-btn" data-code="{{ coupon.code }}"
-                                            {% if coupon.is_used %}disabled{% endif %}>
+                                            {% if coupon.is_used and coupon.user %}disabled{% endif %}>
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <button class="btn btn-sm btn-danger delete-coupon-btn" data-code="{{ coupon.code }}"
-                                            {% if coupon.is_used %}disabled{% endif %}>
+                                            {% if coupon.is_used and coupon.user %}disabled{% endif %}>
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </td>
@@ -406,6 +406,11 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Add jQuery library -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Add Bootstrap JS for modals -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
 <script>
     $(document).ready(function() {
         // Check for success message in URL
@@ -421,20 +426,6 @@
             }, 5000);
         }
         
-        // Initialize DataTable
-        $('#couponsTable').DataTable({
-            "paging": true,
-            "searching": true,
-            "ordering": true,
-            "info": true,
-            "responsive": true,
-            "lengthMenu": [[10, 25, 50, -1], [10, 25, 50, "All"]],
-            "language": {
-                "search": "_INPUT_",
-                "searchPlaceholder": "Search coupons..."
-            }
-        });
-        
         // Simple search functionality
         $("#couponSearch").on("keyup", function() {
             var value = $(this).val().toLowerCase();
@@ -446,6 +437,7 @@
         // Set today's date as min for expiry date
         const today = new Date().toISOString().split('T')[0];
         $('#newExpiryDate').attr('min', today);
+        $('#editExpiryDate').attr('min', today);
         
         // Generate Coupon Form Submit
         $('#generateCouponForm').on('submit', function(e) {
@@ -457,9 +449,17 @@
             const minPurchaseAmount = $('#minPurchaseAmount').val();
             const expiryDays = $('#expiryDays').val();
             
+            // Show loading indicator
+            $('#generateCouponResult').html('<div class="alert alert-info">Processing...</div>');
+            
+            console.log("Generating coupon with data:", {
+                userId, discountType, discountValue, minPurchaseAmount, expiryDays
+            });
+            
             $.ajax({
                 url: '{% url "admin_side:generate_coupon_for_user" 0 %}'.replace('0', userId),
                 type: 'POST',
+                dataType: 'json',
                 data: {
                     'discount_type': discountType,
                     'discount_value': discountValue,
@@ -468,10 +468,26 @@
                     'csrfmiddlewaretoken': '{{ csrf_token }}'
                 },
                 success: function(response) {
-                    if (response.success) {
+                    console.log("Generate coupon response:", response);
+                    
+                    // Check if we got an error response
+                    if (response.status === 'error') {
+                        $('#generateCouponResult').html(
+                            `<div class="alert alert-danger">
+                                ${response.message || 'An error occurred'}
+                            </div>`
+                        );
+                        return;
+                    }
+                    
+                    // Check for success in different formats
+                    if (response.status === 'success' || response.success) {
+                        // Get the coupon code from different possible response formats
+                        const couponCode = response.coupon_code || response.code || (response.coupon ? response.coupon.code : 'Generated');
+                        
                         $('#generateCouponResult').html(
                             `<div class="alert alert-success">
-                                Coupon generated successfully: <strong>${response.coupon_code}</strong>
+                                Coupon generated successfully: <strong>${couponCode}</strong>
                             </div>`
                         );
                         
@@ -482,17 +498,33 @@
                     } else {
                         $('#generateCouponResult').html(
                             `<div class="alert alert-danger">
-                                ${response.error}
+                                ${response.error || response.message || 'Failed to generate coupon'}
                             </div>`
                         );
                     }
                 },
-                error: function() {
-                    $('#generateCouponResult').html(
-                        `<div class="alert alert-danger">
-                            An error occurred. Please try again.
-                        </div>`
-                    );
+                error: function(xhr, status, error) {
+                    console.error("AJAX Error:", {
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        responseText: xhr.responseText,
+                        error: error
+                    });
+                    
+                    try {
+                        const errorResponse = JSON.parse(xhr.responseText);
+                        $('#generateCouponResult').html(
+                            `<div class="alert alert-danger">
+                                ${errorResponse.message || errorResponse.error || 'An error occurred. Please try again.'}
+                            </div>`
+                        );
+                    } catch (e) {
+                        $('#generateCouponResult').html(
+                            `<div class="alert alert-danger">
+                                An error occurred. Please try again. Details: ${error}
+                            </div>`
+                        );
+                    }
                 }
             });
         });
@@ -511,9 +543,17 @@
                 return;
             }
             
+            // Show loading indicator
+            $('#newCouponError').removeClass('alert-danger alert-success').addClass('alert-info').text('Processing...').removeClass('d-none');
+            
+            console.log("Creating coupon with data:", {
+                code, discountType, discountValue, minPurchaseAmount, expiryDate, userId
+            });
+            
             $.ajax({
                 url: '{% url "admin_side:create_coupon" %}',
                 type: 'POST',
+                dataType: 'json',
                 data: {
                     'code': code,
                     'discount_type': discountType,
@@ -524,18 +564,59 @@
                     'csrfmiddlewaretoken': '{{ csrf_token }}'
                 },
                 success: function(response) {
-                    if (response.success) {
-                        $('#newCouponModal').modal('hide');
+                    console.log("Create coupon response:", response);
+                    
+                    // Check if we got an error response
+                    if (response.status === 'error') {
+                        $('#newCouponError').removeClass('alert-info alert-success').addClass('alert-danger').text(response.message || 'An error occurred').removeClass('d-none');
+                        return;
+                    }
+                    
+                    // Check for success in different formats
+                    if (response.status === 'success' || response.success) {
+                        // Show success message
+                        $('#newCouponError').removeClass('alert-danger alert-info').addClass('alert-success').text('Coupon created successfully! Redirecting...').removeClass('d-none');
                         
-                        // Redirect with success message
-                        window.location.href = '{% url "admin_side:coupon_management" %}?success=' + 
-                            encodeURIComponent('Coupon created successfully');
+                        // Move focus outside the modal before closing it
+                        document.body.focus();
+                        // Or focus on a safe element outside the modal
+                        $('#couponSearch').focus();
+                        
+                        // Close modal
+                        setTimeout(function() {
+                            try {
+                                var modal = bootstrap.Modal.getInstance(document.getElementById('newCouponModal'));
+                                if (modal) {
+                                    modal.hide();
+                                }
+                            } catch (e) {
+                                console.error("Error closing modal:", e);
+                                // Try alternative method to close modal
+                                $('#newCouponModal').modal('hide');
+                            }
+                            
+                            // Redirect with success message
+                            window.location.href = '{% url "admin_side:coupon_management" %}?success=' + 
+                                encodeURIComponent('Coupon created successfully');
+                        }, 1500);
                     } else {
-                        $('#newCouponError').text(response.error).removeClass('d-none');
+                        $('#newCouponError').removeClass('alert-info alert-success').addClass('alert-danger').text(response.error || response.message || 'Failed to create coupon').removeClass('d-none');
                     }
                 },
-                error: function() {
-                    $('#newCouponError').text('An error occurred. Please try again.').removeClass('d-none');
+                error: function(xhr, status, error) {
+                    console.error("AJAX Error:", {
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        responseText: xhr.responseText,
+                        error: error
+                    });
+                    
+                    try {
+                        const errorResponse = JSON.parse(xhr.responseText);
+                        $('#newCouponError').removeClass('alert-info alert-success').addClass('alert-danger').text(errorResponse.message || errorResponse.error || 'An error occurred. Please try again.').removeClass('d-none');
+                    } catch (e) {
+                        $('#newCouponError').removeClass('alert-info alert-success').addClass('alert-danger').text('An error occurred. Please try again. Details: ' + error).removeClass('d-none');
+                    }
                 }
             });
         });
@@ -543,12 +624,29 @@
         // Edit Coupon Button Click
         $('.edit-coupon-btn').on('click', function() {
             const couponCode = $(this).data('code');
+            console.log("Editing coupon with code:", couponCode);
+            
+            // Show loading indicator in a more user-friendly way
+            const loadingIndicator = $('<div class="alert alert-info">Loading coupon data...</div>');
+            $('body').append(loadingIndicator);
             
             $.ajax({
                 url: '{% url "admin_side:edit_coupon" "CODE" %}'.replace('CODE', couponCode),
                 type: 'GET',
+                dataType: 'json',
                 success: function(response) {
-                    if (response.success) {
+                    console.log("Edit coupon response:", response);
+                    loadingIndicator.remove();
+                    
+                    // Check if we got an error response
+                    if (response.status === 'error') {
+                        console.error("Server error:", response.message);
+                        alert('Server error: ' + response.message);
+                        return;
+                    }
+                    
+                    // If we have a coupon object directly in the response
+                    if (response.coupon) {
                         const coupon = response.coupon;
                         
                         $('#editCouponCode').val(coupon.code);
@@ -564,15 +662,38 @@
                         
                         $('#editMinPurchaseAmount').val(coupon.min_purchase_amount);
                         $('#editExpiryDate').val(coupon.expiry_date);
-                        $('#editIsActive').prop('checked', coupon.is_active);
                         
-                        $('#editCouponModal').modal('show');
+                        // Check if is_active exists before trying to set it
+                        if ('is_active' in coupon) {
+                            $('#editIsActive').prop('checked', coupon.is_active);
+                        } else {
+                            // Default to checked if not present
+                            $('#editIsActive').prop('checked', true);
+                        }
+                        
+                        // Show the modal
+                        var editModal = new bootstrap.Modal(document.getElementById('editCouponModal'));
+                        editModal.show();
                     } else {
-                        alert('Error: ' + response.error);
+                        console.error("Invalid response format:", response);
+                        alert('Error: Could not find coupon data in the response');
                     }
                 },
-                error: function() {
-                    alert('An error occurred. Please try again.');
+                error: function(xhr, status, error) {
+                    loadingIndicator.remove();
+                    console.error("AJAX Error:", {
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        responseText: xhr.responseText,
+                        error: error
+                    });
+                    
+                    try {
+                        const errorResponse = JSON.parse(xhr.responseText);
+                        alert('Failed to load coupon: ' + (errorResponse.message || errorResponse.error || error));
+                    } catch (e) {
+                        alert('Failed to load coupon. Status: ' + xhr.status + ' ' + xhr.statusText);
+                    }
                 }
             });
         });
@@ -586,9 +707,18 @@
             const expiryDate = $('#editExpiryDate').val();
             const isActive = $('#editIsActive').is(':checked');
             
+            console.log("Updating coupon with data:", {
+                code, discountType, discountValue, minPurchaseAmount, expiryDate, isActive
+            });
+            
+            // Show loading indicator in a more user-friendly way
+            const loadingIndicator = $('<div class="alert alert-info">Updating coupon...</div>');
+            $('body').append(loadingIndicator);
+            
             $.ajax({
                 url: '{% url "admin_side:edit_coupon" "CODE" %}'.replace('CODE', code),
                 type: 'POST',
+                dataType: 'json',
                 data: {
                     'discount_type': discountType,
                     'discount_value': discountValue,
@@ -598,48 +728,133 @@
                     'csrfmiddlewaretoken': '{{ csrf_token }}'
                 },
                 success: function(response) {
-                    if (response.success) {
-                        $('#editCouponModal').modal('hide');
+                    loadingIndicator.remove();
+                    console.log("Update coupon response:", response);
+                    
+                    // Check if we got an error response
+                    if (response.status === 'error') {
+                        console.error("Server error:", response.message);
+                        alert('Server error: ' + response.message);
+                        return;
+                    }
+                    
+                    // Check for success status
+                    if (response.status === 'success' || response.success) {
+                        // Move focus outside the modal before closing it
+                        document.body.focus();
+                        // Or focus on a safe element outside the modal
+                        $('#couponSearch').focus();
+                        
+                        // Close modal
+                        var modal = bootstrap.Modal.getInstance(document.getElementById('editCouponModal'));
+                        if (modal) {
+                            modal.hide();
+                        }
                         
                         // Redirect with success message
                         window.location.href = '{% url "admin_side:coupon_management" %}?success=' + 
                             encodeURIComponent('Coupon updated successfully');
                     } else {
-                        alert('Error: ' + response.error);
+                        console.error("Invalid response format:", response);
+                        alert('Error: ' + (response.error || response.message || 'Failed to update coupon'));
                     }
                 },
-                error: function() {
-                    alert('An error occurred. Please try again.');
+                error: function(xhr, status, error) {
+                    loadingIndicator.remove();
+                    console.error("AJAX Error:", {
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        responseText: xhr.responseText,
+                        error: error
+                    });
+                    
+                    try {
+                        const errorResponse = JSON.parse(xhr.responseText);
+                        alert('Failed to update coupon: ' + (errorResponse.message || errorResponse.error || error));
+                    } catch (e) {
+                        alert('Failed to update coupon. Status: ' + xhr.status + ' ' + xhr.statusText);
+                    }
                 }
             });
         });
         
         // Delete Coupon Button Click
         $('.delete-coupon-btn').on('click', function() {
-            if (confirm('Are you sure you want to delete this coupon?')) {
-                const couponCode = $(this).data('code');
+            const couponCode = $(this).data('code');
+            console.log("Attempting to delete coupon with code:", couponCode);
+            
+            if (confirm('Are you sure you want to delete coupon "' + couponCode + '"?')) {
+                // Show loading indicator in a more user-friendly way
+                const loadingIndicator = $('<div class="alert alert-info">Deleting coupon...</div>');
+                $('body').append(loadingIndicator);
                 
                 $.ajax({
                     url: '{% url "admin_side:delete_coupon" "CODE" %}'.replace('CODE', couponCode),
                     type: 'POST',
+                    dataType: 'json',
                     data: {
                         'csrfmiddlewaretoken': '{{ csrf_token }}'
                     },
                     success: function(response) {
-                        if (response.success) {
+                        loadingIndicator.remove();
+                        console.log("Delete coupon response:", response);
+                        
+                        // Check if we got an error response
+                        if (response.status === 'error') {
+                            console.error("Server error:", response.message);
+                            alert('Server error: ' + response.message);
+                            return;
+                        }
+                        
+                        // Check for success status
+                        if (response.status === 'success' || response.success) {
                             // Redirect with success message
                             window.location.href = '{% url "admin_side:coupon_management" %}?success=' + 
                                 encodeURIComponent('Coupon deleted successfully');
                         } else {
-                            alert('Error: ' + response.error);
+                            console.error("Invalid response format:", response);
+                            alert('Error: ' + (response.error || response.message || 'Failed to delete coupon'));
                         }
                     },
-                    error: function() {
-                        alert('An error occurred. Please try again.');
+                    error: function(xhr, status, error) {
+                        loadingIndicator.remove();
+                        console.error("AJAX Error:", {
+                            status: xhr.status,
+                            statusText: xhr.statusText,
+                            responseText: xhr.responseText,
+                            error: error
+                        });
+                        
+                        try {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            alert('Failed to delete coupon: ' + (errorResponse.message || errorResponse.error || error));
+                        } catch (e) {
+                            alert('Failed to delete coupon. Status: ' + xhr.status + ' ' + xhr.statusText);
+                        }
                     }
                 });
             }
         });
+        
+        // Fix for modal accessibility issues
+        $('.modal').on('hide.bs.modal', function() {
+            // Move focus outside the modal before it's hidden
+            $('#couponSearch').focus();
+        });
+        
+        // Initialize modals with proper accessibility settings
+        var newCouponModal = document.getElementById('newCouponModal');
+        var editCouponModal = document.getElementById('editCouponModal');
+        
+        if (newCouponModal) {
+            newCouponModal.addEventListener('hidden.bs.modal', function() {
+                // Clear form fields when modal is closed
+                $('#newCouponCode').val('');
+                $('#newDiscountValue').val('');
+                $('#newMinPurchaseAmount').val('');
+                $('#newCouponError').addClass('d-none');
+            });
+        }
     });
 </script>
 {% endblock %} 

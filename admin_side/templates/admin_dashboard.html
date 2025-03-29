@@ -388,6 +388,11 @@
                         {% empty %}
                         <div class="text-center">No sales data available</div>
                         {% endfor %}
+                        <div class="text-center mt-3">
+                            <a href="#" class="btn btn-sm btn-outline" data-bs-toggle="modal" data-bs-target="#topProductsModal">
+                                <i class="fas fa-eye me-1"></i> View More
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -422,6 +427,101 @@
         </div>
     </div>
 </div>
+
+<!-- Top Products and Categories Modal -->
+<div class="modal fade" id="topProductsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background-color: var(--light-brown);">
+                <h5 class="modal-title" style="color: var(--primary-color);">
+                    <i class="fas fa-chart-bar me-2"></i>Sales Performance
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <!-- Top 10 Products -->
+                    <div class="col-md-6">
+                        <div class="card stats-card mb-3">
+                            <div class="card-header" style="background-color: var(--light-brown);">
+                                <h6 class="mb-0" style="color: var(--primary-color);">Best Selling Products (Top 10)</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Product</th>
+                                                <th>Units Sold</th>
+                                                <th>Revenue</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for product in top_ten_products %}
+                                            <tr>
+                                                <td>{{ forloop.counter }}</td>
+                                                <td>{{ product.product__title|truncatechars:20 }}</td>
+                                                <td>{{ product.items_sold }}</td>
+                                                <td>₹{{ product.total_sales|floatformat:2 }}</td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr>
+                                                <td colspan="4" class="text-center">No sales data available</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Top 10 Categories -->
+                    <div class="col-md-6">
+                        <div class="card stats-card mb-3">
+                            <div class="card-header" style="background-color: var(--light-brown);">
+                                <h6 class="mb-0" style="color: var(--primary-color);">Best Selling Categories (Top 10)</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Category</th>
+                                                <th>Units Sold</th>
+                                                <th>Revenue</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for category in top_categories %}
+                                            <tr>
+                                                <td>{{ forloop.counter }}</td>
+                                                <td>{{ category.product__category__name|default:"Uncategorized" }}</td>
+                                                <td>{{ category.items_sold }}</td>
+                                                <td>₹{{ category.total_sales|floatformat:2 }}</td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr>
+                                                <td colspan="4" class="text-center">No category data available</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
